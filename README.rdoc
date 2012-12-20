@@ -1,0 +1,12 @@
+= testml-lite - Lite Version of TestML for Ruby
+
+TestML is an Acmeist Unit Test language/framework. TestML::Lite is a lighter,
+bootstrapping implementation of that.
+
+= Synopsis
+
+    require 'testml/lite'
+
+= Copyright
+
+Copyright (c) 2012 Ingy döt Net. See LICENSE for further details.
