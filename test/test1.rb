@@ -1,13 +1,16 @@
-require './test/lib/test_testml_lite'
+require 'testml/lite'
+require 'testml_bridge'
 
 TestML.require_or_skip 'json'
 TestML.require_or_skip 'yaml'
 
-TestML.run do |t|
-  t.eval '*json.json_load.yaml_dump == *yaml'
-end
+testml = TestML::Test.new
 
-TestML.data <<'...'
+testml.bridge = TestMLBridge
+
+testml.function << '*json.json_load.yaml_dump == *yaml'
+
+testml.document = <<'...'
 === Array
 --- json: [1,2,3]
 --- yaml

@@ -1,0 +1,21 @@
+- fix 1 == 1
+- make work with pegex-rb
+- move TestML::Compiler to a class
+- move TestML::Runtime to a class
+- rake/testml/lite
+  - use test/testml.yaml
+  - copy tml files from source repo
+  - generate .rb files from templates
+- testml.plan = 5
+- testml.block = [...]
+- TestML.require_or_skip 'x', 'y', 'z'
+- make require_or_skip not exit
+  - maybe throw a special error
+- write doc
+  - look at rdoc and yard
+- release
+- port to perl
+
+
+== Ideas
+- test-converage-rb

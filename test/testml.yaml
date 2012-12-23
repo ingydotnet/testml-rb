@@ -1,0 +1,10 @@
+source: ../../testml-lite-tml
+target: ./testml
+bridge: ./lib/testml_bridge.rb
+template: |
+  require 'testml/lite'
+
+  TestML::Test.new do |t|
+    t.tmlfile = #{conf['document']}
+    t.bridge = TestMLBridge
+  end

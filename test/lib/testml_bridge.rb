@@ -1,7 +1,13 @@
 require './lib/testml/lite'
 
-class TestTestMLLite < TestML::Lite
-  include TestML::Lite::TestCases
+class TestMLBridge < TestML::Bridge
+  def uppercase string
+    string.upcase
+  end
+
+  def lowercase string
+    string.downcase
+  end
 
   def json_load json
     require 'json'
