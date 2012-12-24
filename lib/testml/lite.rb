@@ -9,8 +9,7 @@ require 'test/unit'
 $:.unshift "#{Dir.getwd}/lib"
 $:.unshift "#{Dir.getwd}/test/lib"
 
-# Define the base TestML module. TestML Helper class functions can go
-# here.
+# Define the base TestML module, with a few helper class methods.
 module TestML
   # TestML::Lite class does nothing, but let's put the VERSION here.
   class Lite
@@ -22,18 +21,6 @@ module TestML
   @@Tests = Hash.new
   def self.Tests
     @@Tests
-  end
-
-  # Skip the test file unless we can require the requisite library(s)
-  def self.require_or_skip library, *libraries
-    libraries.unshift library
-    libraries.each do |lib|
-      begin
-        require lib
-      rescue
-        exit
-      end
-    end
   end
 
   # Find the first call stack entry that looks like:
@@ -57,12 +44,6 @@ end
 # inject a method called "test_#{test_file_name}" into this class,
 # since we know that Test::Unit calls methods that begin with 'test'.
 class TestML::TestCase < Test::Unit::TestCase
-  def runner name
-    test = TestML.Tests[name] or fail "No test object for '#{name}'"
-    test.finalize
-    test.runtime.testcase = self
-    test.runtime.run
-  end
 end
 
 # Test files create TestML::Test objects, which inject runner methods
@@ -76,6 +57,8 @@ class TestML::Test
   attr_accessor :function
   attr_accessor :blocks
   attr_accessor :plan
+  attr_accessor :skip
+  attr_accessor :compiler
   attr_accessor :runtime
 
   def initialize test_name=nil
@@ -88,7 +71,11 @@ class TestML::Test
     # Generate a method that Test::Unit will discover and run. This
     # method will run the tests defined in this TestML::Test object.
     TestML::TestCase.send(:define_method, test_name) do
-      runner test_name
+      test = TestML.Tests[test_name] \
+        or fail "No test object for '#{test_name}'"
+      test.finalize
+      test.runtime.testcase = self
+      test.runtime.run
     end
 
     # Initialize the object attributes:
@@ -109,7 +96,6 @@ class TestML::Test
         @tmlfile = "#{File.dirname @testfile}/#{@tmlfile}"
       end
       @document = File.read @tmlfile
-      @tmlfile = nil
     end
     @compiler = TestML::Compiler.new
     if @document
@@ -121,11 +107,19 @@ class TestML::Test
     @function.map! do |f|
       f.class == String ? @compiler.parse_expr(f) : f
     end
-    @runtime = TestML::Runtime.new do |r|
-      r.function = @function
-      r.blocks = @blocks
-      r.bridge = @bridge
-      r.plan = @plan
+    @runtime = TestML::Runtime.new(self)
+  end
+
+  # Skip the test file unless we can require the requisite library(s)
+  def require_or_skip library, *libraries
+    libraries.unshift library
+    libraries.each do |lib|
+      begin
+        require lib
+      rescue LoadError
+        @skip = "Can't require '#{lib}'. Skipping test."
+        break
+      end
     end
   end
 end
@@ -249,41 +243,32 @@ end
 # applying it Ruby's Test::Unit.
 class TestML::Runtime
   attr_accessor :testcase
-  attr_accessor :function
-  attr_accessor :blocks
-  attr_accessor :bridge
-  attr_accessor :plan
 
-  def initialize
-    yield self
+  def initialize(test)
+    @test = test
   end
 
   def run
+    if @test.skip
+      @testcase.skip @test.skip
+      return
+    end
     @count = 0
-    @function.each {|f| execute(f)}
-    if @plan
-      @testcase.assert_equal @plan, @count, "Plan #{@plan} tests"
+    @test.function.each {|f| execute(f)}
+    if plan = @test.plan
+      @testcase.assert_equal plan, @count, "Plan #{plan} tests"
     end
   end
 
   # Execute an expression/function.
   def execute expr, callback=nil
-    expr = @compiler.parse_expr expr if expr.kind_of? String
-#       callback ||= method 'run_test'
     get_blocks(expr).each do |block|
-    # TODO @error
+      # TODO @error
       $error = nil
-#         callback.call(block, expr)
       evaluate expr, block
       raise $error if $error
     end
   end
-
-#     def run_test block, expr
-#       expr = @compiler.parse_expr expr if expr.kind_of? String
-#       block = get_blocks(expr, [block]).first or return
-#       evaluate expr, block
-#     end
 
   # Evaluate a TestML method call.
   def evaluate expr, block
@@ -304,7 +289,7 @@ class TestML::Runtime
       args << block
       method = self.method(func)
     else
-      method = @bridge.method(func)
+      method = @test.bridge.method(func)
     end
     begin
       return method.call(*args)
@@ -314,7 +299,7 @@ class TestML::Runtime
   end
 
   # Get the data blocks that apply to an expression.
-  def get_blocks expr, blocks=@blocks
+  def get_blocks expr, blocks=@test.blocks
     want = expr.flatten.grep(/^\*/).collect{|ex| ex.gsub /^\*/, ''}
     return [nil] if want.empty?
     only = blocks.select{|block| block['ONLY']}
@@ -339,8 +324,9 @@ class TestML::Runtime
 
   def Equal got, want, block
     @count += 1
-    block ||= {:label => "Test ##{@count}"}
-    label = block.kind_of?(String) ? block : block[:label]
+    label = block ?
+      block.kind_of?(String) ? block : block[:label] :
+      "Test ##{@count}"
     if got != want
       if respond_to? 'on_fail'
         on_fail
@@ -355,7 +341,9 @@ class TestML::Runtime
 
   def Match got, want, block
     @count += 1
-    label = block.kind_of?(String) ? block : block[:label]
+    label = block ?
+      block.kind_of?(String) ? block : block[:label] :
+      "Test ##{@count}"
     @testcase.assert_match want, got, label
   end
 end

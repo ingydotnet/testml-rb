@@ -1,15 +1,14 @@
 require 'testml/lite'
 require 'testml_bridge'
 
-TestML.require_or_skip 'json', 'yaml'
+testml = TestML::Test.new do |t|
+  t.require_or_skip 'json', 'yaml'
+  t.bridge = TestMLBridge
+  t.document = <<'...'
+Plan = 1;
 
-testml = TestML::Test.new
+*json.json_load.yaml_dump == *yaml;
 
-testml.bridge = TestMLBridge
-
-testml.function << '*json.json_load.yaml_dump == *yaml'
-
-testml.document = <<'...'
 === Array
 --- json: [1,2,3]
 --- yaml
@@ -17,3 +16,4 @@ testml.document = <<'...'
 - 2
 - 3
 ...
+end

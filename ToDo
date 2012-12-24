@@ -2,6 +2,9 @@
 + move TestML::Compiler to a class
 + move TestML::Runtime to a class
 + testml.plan = 5
++ ~~ Match should use index, not regex
++ testml.blocks = [...]
+- TestML.require_or_skip 'x', 'y', 'z'
 
 - make work with pegex-rb
 - make a pegex-tml
@@ -10,14 +13,13 @@
   - use test/testml.yaml
   - copy tml files from source repo
   - generate .rb files from templates
-- testml.block = [...]
-- TestML.require_or_skip 'x', 'y', 'z'
-- ~~ Match should use index, not regex
+
 - make require_or_skip not exit
   - maybe throw a special error
 - write doc
   - look at rdoc and yard
-- release
+- release to rubygems
+
 - port to perl
 
 
