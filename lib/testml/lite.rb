@@ -58,7 +58,7 @@ class TestML::Test
   attr_accessor :bridge
   attr_accessor :document
   attr_accessor :function
-  attr_accessor :block
+  attr_accessor :blocks
   attr_accessor :plan
   attr_accessor :_testcase
   def initialize test_name=nil
@@ -75,7 +75,7 @@ class TestML::Test
 
     # Initialize the object attributes:
     @function = []
-    @block = []
+    @blocks = []
     # Let caller initialize attributes:
     yield self if block_given?
   end
@@ -93,11 +93,16 @@ class TestML::Test
       @document = File.read @tmlfile
       @tmlfile = nil
     end
+    @compiler = TestML::Compiler.new
     if @document
-      _parse_document @document
-      @document = nil
+      @compiler.parse_document @document
+      @function.concat @compiler.function
+      @blocks.concat @compiler.blocks
+      @plan = @compiler.plan
     end
-    @function.map! { |f| f.class == String ? _parse_expr(f) : f }
+    @function.map! do |f|
+      f.class == String ? @compiler.parse_expr(f) : f
+    end
   end
 
   # Finalize the test object, run all the functions, check the plan
@@ -120,112 +125,6 @@ class TestML::Test
     name.gsub!(/^(?:.*\/)?test\/([-\w+]+)\.rb$/, '\1').gsub(/[^\w]+/, '_')
     return "test_#{name}"
   end
-
-  #------------------------------------------------------------------
-  module Compiler
-    def _parse_document document
-      lines = document.lines.to_a.map{|_|_.chomp}
-      while not lines.empty?
-        line = lines.shift
-        next unless line.match /\S/
-        next if line.match /^\s*#/
-        if line[0..2] == "==="
-          lines.unshift line
-          break
-        end
-        if line.rstrip.match /^%TestML +(\d+\.\d+\.\d+)$/
-          @testml_version = $1
-        elsif line.strip.match /^Plan *= *(\d+);$/
-          @plan = $1.to_i
-        elsif line.strip.match /^.*(?:==|~~).*;$/
-          @function << line.chop
-        else
-          lines.unshift line
-          fail "Failed to parse TestML document, here:\n" +
-            lines.join($/)
-        end
-      end
-      lines.push('') unless lines.empty?
-      @block = _parse_data lines.join $/
-    end
-
-    def _parse_expr expr
-      left, op, right = [], nil, nil
-      side = left
-      while expr.length != 0
-        token = _get_token expr
-        if token =~ /^(==|~~)$/
-          op = token == '==' ? 'Equal' : 'Match'
-          left = side
-          side = right = []
-        else
-          side = [side] if side.size >= 2
-          side.unshift token
-        end
-      end
-      right = side if right
-      return left unless right
-      left = left.first if left.size == 1
-      right = right.first if right.size == 1
-      return [op, left, right]
-    end
-
-    def _get_token expr
-      if expr.sub! /^(\w+)\(([^\)]+)\)\.?/, ''
-        token, args = [$1], $2
-        token.concat(
-          args.split(/,\s*/).map {|t| t.sub /^(['"])(.*)\1$/, '\2'}
-        )
-      elsif expr.sub! /^\s*(==|~~)\s*/, ''
-        token = $1
-      elsif expr.sub! /^(['"])(.*?)\1/, ''
-        token = ['String', $2]
-      elsif expr.sub! /^(\d+)\1/, ''
-        token = ['Number', $2]
-      elsif expr.sub! /^([\*\w]+)\.?/, ''
-        token = $1
-      else
-        fail "Can't get token from '#{expr}'"
-      end
-      return token
-    end
-
-    def _parse_data string
-      string.gsub! /^#.*\n/, ''
-      string.gsub! /^\\/, ''
-      string.gsub! /^\s*\n/, ''
-      blocks = string.split /(^===.*?(?=^===|\z))/m
-      blocks.reject!{|b| b.empty?}
-      blocks.each do |block|
-        block.gsub! /\n+\z/, "\n"
-      end
-
-      array = []
-      blocks.each do |string_block|
-        block = {}
-        string_block.gsub! /^===\ +(.*?)\ *\n/, '' \
-          or fail "No block label! #{string_block}"
-        block[:label] = $1
-        while !string_block.empty? do
-          if string_block.gsub! /\A---\ +(\w+):\ +(.*)\n/, '' or
-             string_block.gsub! /\A---\ +(\w+)\n(.*?)(?=^---|\z)/m, ''
-            key, value = $1, $2
-          else
-            raise "Failed to parse TestML string:\n#{string_block}"
-          end
-          block[:point] ||= {}
-          block[:point][key] = value
-
-          if key =~ /^(ONLY|SKIP|LAST)$/
-            block[key] = true
-          end
-        end
-        array << block
-      end
-      return array
-    end
-  end
-  include Compiler
 
   #------------------------------------------------------------------
   module Runtime
@@ -252,7 +151,7 @@ class TestML::Test
     end
 
     def _execute expr, callback=nil
-      expr = _parse_expr expr if expr.kind_of? String
+      expr = @compiler.parse_expr expr if expr.kind_of? String
 #       callback ||= method '_run_test'
       _get_blocks(expr).each do |block|
         $error = nil
@@ -263,7 +162,7 @@ class TestML::Test
     end
 
 #     def _run_test block, expr
-#       expr = _parse_expr expr if expr.kind_of? String
+#       expr = @compiler.parse_expr expr if expr.kind_of? String
 #       block = _get_blocks(expr, [block]).first or return
 #       _evaluate expr, block
 #     end
@@ -275,7 +174,7 @@ class TestML::Test
         if ex.kind_of? Array
           _evaluate ex, block
         elsif ex =~ /\A\*(\w+)\z/
-          block[:point][$1]
+          block[:points][$1]
         else
           ex
         end
@@ -296,7 +195,7 @@ class TestML::Test
       end
     end
 
-    def _get_blocks expr, blocks=@block
+    def _get_blocks expr, blocks=@blocks
       want = expr.flatten.grep(/^\*/).collect{|ex| ex.gsub /^\*/, ''}
       return [nil] if want.empty?
       only = blocks.select{|block| block['ONLY']}
@@ -306,7 +205,7 @@ class TestML::Test
         next if block['SKIP']
         ok = true
         want.each do |w|
-          unless block[:point][w]
+          unless block[:points][w]
             ok = false
             break
           end
@@ -320,6 +219,118 @@ class TestML::Test
     end
   end
   include Runtime
+end
+
+class TestML::Compiler
+  attr_accessor :function
+  attr_accessor :blocks
+  attr_accessor :plan
+  attr_accessor :testml_version
+
+  def parse_document document
+    @function = []
+    @blocks = []
+    lines = document.lines.to_a.map{|_|_.chomp}
+    while not lines.empty?
+      line = lines.shift
+      next unless line.match /\S/
+      next if line.match /^\s*#/
+      if line[0..2] == "==="
+        lines.unshift line
+        break
+      end
+      if line.rstrip.match /^%TestML +(\d+\.\d+\.\d+)$/
+        @testml_version = $1
+      elsif line.strip.match /^Plan *= *(\d+);$/
+        @plan = $1.to_i
+      elsif line.strip.match /^.*(?:==|~~).*;$/
+        @function << line.chop
+      else
+        lines.unshift line
+        fail "Failed to parse TestML document, here:\n" +
+          lines.join($/)
+      end
+    end
+    unless lines.empty?
+      @blocks = parse_data lines.push('').join $/
+    end
+  end
+
+  def parse_expr expr
+    left, op, right = [], nil, nil
+    side = left
+    while expr.length != 0
+      token = _get_token expr
+      if token =~ /^(==|~~)$/
+        op = token == '==' ? 'Equal' : 'Match'
+        left = side
+        side = right = []
+      else
+        side = [side] if side.size >= 2
+        side.unshift token
+      end
+    end
+    right = side if right
+    return left unless right
+    left = left.first if left.size == 1
+    right = right.first if right.size == 1
+    return [op, left, right]
+  end
+
+  def _get_token expr
+    if expr.sub! /^(\w+)\(([^\)]+)\)\.?/, ''
+      token, args = [$1], $2
+      token.concat(
+        args.split(/,\s*/).map {|t| t.sub /^(['"])(.*)\1$/, '\2'}
+      )
+    elsif expr.sub! /^\s*(==|~~)\s*/, ''
+      token = $1
+    elsif expr.sub! /^(['"])(.*?)\1/, ''
+      token = ['String', $2]
+    elsif expr.sub! /^(\d+)\1/, ''
+      token = ['Number', $2]
+    elsif expr.sub! /^([\*\w]+)\.?/, ''
+      token = $1
+    else
+      fail "Can't get token from '#{expr}'"
+    end
+    return token
+  end
+
+  def parse_data string
+    string.gsub! /^#.*\n/, ''
+    string.gsub! /^\\/, ''
+    string.gsub! /^\s*\n/, ''
+    blocks = string.split /(^===.*?(?=^===|\z))/m
+    blocks.reject!{|b| b.empty?}
+    blocks.each do |block|
+      block.gsub! /\n+\z/, "\n"
+    end
+
+    array = []
+    blocks.each do |string_block|
+      block = {}
+      string_block.gsub! /^===\ +(.*?)\ *\n/, '' \
+        or fail "No block label! #{string_block}"
+      block[:label] = $1
+      while !string_block.empty? do
+        if string_block.gsub! /\A---\ +(\w+):\ +(.*)\n/, '' or
+           string_block.gsub! /\A---\ +(\w+)\n(.*?)(?=^---|\z)/m, ''
+          key, value = $1, $2
+        else
+          raise "Failed to parse TestML string:\n#{string_block}"
+        end
+        block[:points] ||= {}
+        block[:points][key] = value
+
+        if key =~ /^(ONLY|SKIP|LAST)$/
+          block[key] = true
+        end
+      end
+      array << block
+    end
+    return array
+  end
 end
 
 class TestML::Bridge

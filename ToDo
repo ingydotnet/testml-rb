@@ -1,6 +1,7 @@
-- fix 1 == 1
++ fix 1 == 1
++ move TestML::Compiler to a class
 - make work with pegex-rb
-- move TestML::Compiler to a class
+- make a pegex-tml
 - move TestML::Runtime to a class
 - rake/testml/lite
   - use test/testml.yaml
