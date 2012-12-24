@@ -1,8 +1,8 @@
 require 'test/unit'
 
-    # XXX
-    require 'pp'
-    require 'yaml'; def XXX object; fail YAML.dump object; end
+#     # XXX
+#     require 'pp'
+#     require 'yaml'; def XXX object; fail YAML.dump object; end
 
 # Make sure tests have access to the application libs and the testing
 # libs.
