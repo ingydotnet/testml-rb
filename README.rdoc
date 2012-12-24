@@ -1,11 +1,36 @@
 = testml-lite - Lite Version of TestML for Ruby
 
-TestML is an Acmeist Unit Test language/framework. TestML::Lite is a lighter,
-bootstrapping implementation of that.
+TestML is an Acmeist unit test language/framework. TestML::Lite is a
+lighter, bootstrapping implementation of that.
 
 = Synopsis
 
+In a file called +test/mytest.rb+:
+
     require 'testml/lite'
+
+    TestML::Test.new.document = <<'.'
+    Plan = 4;
+
+    *x.add(*y) == *sum;
+    *x.mult(*y) == *sum;
+
+    === Test one
+    --- x: 42
+    --- y: 43
+    .
+
+= Description
+
+= TestML::Test API
+
+= About TestML
+
+TestML::Lite subclasses Test::Unit, so it Just Works with your other
+test code/files and with +rake test+.
+
+All you need to do is create a new TestML::Test object in a test file.
+TestML::Test has a 
 
 = Copyright
 

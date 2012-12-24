@@ -1,9 +1,5 @@
 require 'test/unit'
 
-#     # XXX
-#     require 'pp'
-#     require 'yaml'; def XXX object; fail YAML.dump object; end
-
 # Make sure tests have access to the application libs and the testing
 # libs.
 $:.unshift "#{Dir.getwd}/lib"
@@ -25,15 +21,15 @@ module TestML
 
   # Find the first call-stack entry that looks like:
   # .../test/xxx-yyy.rb
-  def self.get_test_file
+  def self.get_testfile
     caller.map { |s|
       s.split(':').first
     }.grep(/(^|\/)test\/[-\w]+\.rb$/).first or fail
   end
 
   # Return something like 'test_xxx_yyy' as the test name.
-  def self.get_test_name
-    name = TestML.get_test_file
+  def self.get_testname
+    name = TestML.get_testfile
     name.gsub!(/^(?:.*\/)?test\/([-\w+]+)\.rb$/, '\1').gsub(/[^\w]+/, '_')
     return "test_#{name}"
   end
@@ -43,8 +39,7 @@ end
 # Every time that a test file creates a TestML::Test object, we
 # inject a method called "test_#{test_file_name}" into this class,
 # since we know that Test::Unit calls methods that begin with 'test'.
-class TestML::TestCase < Test::Unit::TestCase
-end
+class TestML::TestCase < Test::Unit::TestCase;end
 
 # Test files create TestML::Test objects, which inject runner methods
 # into TestML::TestCase so they will get caalled later. Each
@@ -52,6 +47,7 @@ end
 # testml to run a test.
 class TestML::Test
   # These attributes are the API for TestML::Test.
+  attr_accessor :testname
   attr_accessor :tmlfile
   attr_accessor :bridge
   attr_accessor :document
@@ -64,18 +60,21 @@ class TestML::Test
   attr_accessor :compiler
   attr_accessor :runtime
 
-  def initialize test_name=nil
+  def initialize attributes={}
+    # Set named attributes:
+    attributes.each { |k,v| self.send "#{k}=", v }
+
     # First order of business is to register this test object so that
     # it can be called by the generated Test::Unit method later on.
-    @testfile = TestML.get_test_file
-    test_name ||= TestML.get_test_name
-    TestML.Tests[test_name] = self
+    @testfile = TestML.get_testfile
+    testname = @testname ||= TestML.get_testname
+    TestML.Tests[@testname] = self
 
     # Generate a method that Test::Unit will discover and run. This
     # method will run the tests defined in this TestML::Test object.
-    TestML::TestCase.send(:define_method, test_name) do
-      test = TestML.Tests[test_name] \
-        or fail "No test object for '#{test_name}'"
+    TestML::TestCase.send(:define_method, testname) do
+      test = TestML.Tests[testname] \
+        or fail "No test object for '#{testname}'"
       test.finalize
       test.runtime.testcase = self
       test.runtime.run
@@ -266,10 +265,10 @@ class TestML::Runtime
   # Execute an expression/function.
   def execute expr, callback=nil
     get_blocks(expr).each do |block|
-      # TODO @error
-      $error = nil
+      # TODO eliminate this global variable.
+      $TestMLError = nil
       evaluate expr, block
-      raise $error if $error
+      raise $TestMLError if $TestMLError
     end
   end
 
@@ -286,7 +285,7 @@ class TestML::Runtime
         ex
       end
     end
-    return if $error and func != 'Catch'
+    return if $TestMLError and func != 'Catch'
     return args.first if func.empty?
     if %w(Equal Match).include? func
       args << block
@@ -297,7 +296,7 @@ class TestML::Runtime
     begin
       return method.call(*args)
     rescue => e
-      $error = e
+      $TestMLError = e
     end
   end
 
@@ -353,9 +352,9 @@ end
 
 class TestML::Bridge
   def Catch any=nil
-    fail "Catch called, but no error occurred" unless $error
-    error = $error
-    $error = nil
+    fail "Catch called, but no error occurred" unless $TestMLError
+    error = $TestMLError
+    $TestMLError = nil
     return error.message
   end
 

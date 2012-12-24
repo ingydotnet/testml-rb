@@ -4,7 +4,14 @@
 + testml.plan = 5
 + ~~ Match should use index, not regex
 + testml.blocks = [...]
-- TestML.require_or_skip 'x', 'y', 'z'
++ testml.require_or_skip 'x', 'y', 'z'
++ make require_or_skip not exit
++ TestML::Test constructor can take hash or block or nothing
+
+- Use test_plan in Test::Unit
+- Default bridge can be TestMLBridge
+- Also look in main for methods
+- Eliminate global $TestMLError
 
 - make work with pegex-rb
 - make a pegex-tml
@@ -14,8 +21,6 @@
   - copy tml files from source repo
   - generate .rb files from templates
 
-- make require_or_skip not exit
-  - maybe throw a special error
 - write doc
   - look at rdoc and yard
 - release to rubygems
