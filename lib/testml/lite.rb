@@ -23,7 +23,7 @@ module TestML
     @@Tests
   end
 
-  # Find the first call stack entry that looks like:
+  # Find the first call-stack entry that looks like:
   # .../test/xxx-yyy.rb
   def self.get_test_file
     caller.map { |s|
@@ -51,6 +51,7 @@ end
 # TestML::Test object contains all the information needed by
 # testml to run a test.
 class TestML::Test
+  # These attributes are the API for TestML::Test.
   attr_accessor :tmlfile
   attr_accessor :bridge
   attr_accessor :document
@@ -58,6 +59,8 @@ class TestML::Test
   attr_accessor :blocks
   attr_accessor :plan
   attr_accessor :skip
+
+  # Private attributes
   attr_accessor :compiler
   attr_accessor :runtime
 
