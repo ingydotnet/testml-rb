@@ -35,6 +35,21 @@ module TestML
       end
     end
   end
+
+  # Find the first call stack entry that looks like:
+  # .../test/xxx-yyy.rb
+  def self.get_test_file
+    caller.map { |s|
+      s.split(':').first
+    }.grep(/(^|\/)test\/[-\w]+\.rb$/).first or fail
+  end
+
+  # Return something like 'test_xxx_yyy' as the test name.
+  def self.get_test_name
+    name = TestML.get_test_file
+    name.gsub!(/^(?:.*\/)?test\/([-\w+]+)\.rb$/, '\1').gsub(/[^\w]+/, '_')
+    return "test_#{name}"
+  end
 end
 
 # This is the class that Test::Unit will use to run actual tests.
@@ -64,7 +79,8 @@ class TestML::Test
   def initialize test_name=nil
     # First order of business is to register this test object so that
     # it can be called by the generated Test::Unit method later on.
-    test_name ||= _get_test_name
+    @testfile = TestML.get_test_file
+    test_name ||= TestML.get_test_name
     TestML.Tests[test_name] = self
 
     # Generate a method that Test::Unit will discover and run. This
@@ -113,17 +129,6 @@ class TestML::Test
     if @plan
       _testcase.assert_equal @plan, @count, "Plan #{@plan} tests"
     end
-  end
-
-  # Find the first call stack entry that looks like:
-  # .../test/xxx-yyy.rb and return 'test_xxx_yyy' as the test name.
-  def _get_test_name
-    name = caller.map { |s|
-      s.split(':').first
-    }.grep(/(^|\/)test\/[-\w]+\.rb$/).first or fail
-    @testfile = name.clone
-    name.gsub!(/^(?:.*\/)?test\/([-\w+]+)\.rb$/, '\1').gsub(/[^\w]+/, '_')
-    return "test_#{name}"
   end
 
   #------------------------------------------------------------------
