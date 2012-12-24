@@ -58,9 +58,10 @@ end
 # since we know that Test::Unit calls methods that begin with 'test'.
 class TestML::TestCase < Test::Unit::TestCase
   def runner name
-    test = TestML.Tests[name]
-    test._testcase = self
-    test._run
+    test = TestML.Tests[name] or fail "No test object for '#{name}'"
+    test.finalize
+    test.runtime.testcase = self
+    test.runtime.run
   end
 end
 
@@ -75,7 +76,8 @@ class TestML::Test
   attr_accessor :function
   attr_accessor :blocks
   attr_accessor :plan
-  attr_accessor :_testcase
+  attr_accessor :runtime
+
   def initialize test_name=nil
     # First order of business is to register this test object so that
     # it can be called by the generated Test::Unit method later on.
@@ -98,7 +100,7 @@ class TestML::Test
 
   # Finalize TestML::Test object, since user may have added things
   # since construction time. After this we can run the test.
-  def _finalize
+  def finalize
     @bridge ||= TestML::Bridge
     @bridge = @bridge.new unless @bridge.is_a? TestML::Bridge
     @function = [@function] unless @function.class == Array
@@ -119,113 +121,18 @@ class TestML::Test
     @function.map! do |f|
       f.class == String ? @compiler.parse_expr(f) : f
     end
-  end
-
-  # Finalize the test object, run all the functions, check the plan
-  def _run
-    _finalize
-    @count = 0
-    @function.each {|f| _execute(f)}
-    if @plan
-      _testcase.assert_equal @plan, @count, "Plan #{@plan} tests"
+    @runtime = TestML::Runtime.new do |r|
+      r.function = @function
+      r.blocks = @blocks
+      r.bridge = @bridge
+      r.plan = @plan
     end
   end
-
-  #------------------------------------------------------------------
-  module Runtime
-    def _equal got, want, block
-      @count += 1
-      block ||= {:label => "Test ##{@count}"}
-      label = block.kind_of?(String) ? block : block[:label]
-      if got != want
-        if respond_to? 'on_fail'
-          on_fail
-        elsif want.match /\n/
-          File.open('/tmp/got', 'w') {|f| f.write got}
-          File.open('/tmp/want', 'w') {|f| f.write want}
-          puts `diff -u /tmp/want /tmp/got`
-        end
-      end
-      _testcase.assert_equal want, got, label
-    end
-
-    def _match got, want, block
-      @count += 1
-      label = block.kind_of?(String) ? block : block[:label]
-      _testcase.assert_match want, got, label
-    end
-
-    def _execute expr, callback=nil
-      expr = @compiler.parse_expr expr if expr.kind_of? String
-#       callback ||= method '_run_test'
-      _get_blocks(expr).each do |block|
-        $error = nil
-#         callback.call(block, expr)
-        _evaluate expr, block
-        raise $error if $error
-      end
-    end
-
-#     def _run_test block, expr
-#       expr = @compiler.parse_expr expr if expr.kind_of? String
-#       block = _get_blocks(expr, [block]).first or return
-#       _evaluate expr, block
-#     end
-
-    def _evaluate expr, block
-      expr = ['', expr] if expr.kind_of? String
-      func = expr.first
-      args = expr[1..expr.length-1].collect do |ex|
-        if ex.kind_of? Array
-          _evaluate ex, block
-        elsif ex =~ /\A\*(\w+)\z/
-          block[:points][$1]
-        else
-          ex
-        end
-      end
-      # TODO @error
-      return if $error and func != 'Catch'
-      return args.first if func.empty?
-      if %w(Equal Match).include? func
-        args << block
-        method = self.method("_#{func.downcase}")
-      else
-        method = @bridge.method(func)
-      end
-      begin
-        return method.call(*args)
-      rescue => e
-        $error = e
-      end
-    end
-
-    def _get_blocks expr, blocks=@blocks
-      want = expr.flatten.grep(/^\*/).collect{|ex| ex.gsub /^\*/, ''}
-      return [nil] if want.empty?
-      only = blocks.select{|block| block['ONLY']}
-      blocks = only unless only.empty?
-      final = []
-      blocks.each do |block|
-        next if block['SKIP']
-        ok = true
-        want.each do |w|
-          unless block[:points][w]
-            ok = false
-            break
-          end
-        end
-        if ok
-          final << block
-          break if block['LAST']
-        end
-      end
-      return final
-    end
-  end
-  include Runtime
 end
 
+# This is the Lite version of the TestML compiler. It can parse
+# simple statements and assertions and also parse the TestML data
+# format.
 class TestML::Compiler
   attr_accessor :function
   attr_accessor :blocks
@@ -235,7 +142,7 @@ class TestML::Compiler
   def parse_document document
     @function = []
     @blocks = []
-    lines = document.lines.to_a.map{|_|_.chomp}
+    lines = document.lines.to_a.map &:chomp
     while not lines.empty?
       line = lines.shift
       next unless line.match /\S/
@@ -265,7 +172,7 @@ class TestML::Compiler
     left, op, right = [], nil, nil
     side = left
     while expr.length != 0
-      token = _get_token expr
+      token = get_token expr
       if token =~ /^(==|~~)$/
         op = token == '==' ? 'Equal' : 'Match'
         left = side
@@ -282,7 +189,7 @@ class TestML::Compiler
     return [op, left, right]
   end
 
-  def _get_token expr
+  def get_token expr
     if expr.sub! /^(\w+)\(([^\)]+)\)\.?/, ''
       token, args = [$1], $2
       token.concat(
@@ -335,6 +242,121 @@ class TestML::Compiler
       array << block
     end
     return array
+  end
+end
+
+# The Runtime object is responsible for running the TestML code and
+# applying it Ruby's Test::Unit.
+class TestML::Runtime
+  attr_accessor :testcase
+  attr_accessor :function
+  attr_accessor :blocks
+  attr_accessor :bridge
+  attr_accessor :plan
+
+  def initialize
+    yield self
+  end
+
+  def run
+    @count = 0
+    @function.each {|f| execute(f)}
+    if @plan
+      @testcase.assert_equal @plan, @count, "Plan #{@plan} tests"
+    end
+  end
+
+  # Execute an expression/function.
+  def execute expr, callback=nil
+    expr = @compiler.parse_expr expr if expr.kind_of? String
+#       callback ||= method 'run_test'
+    get_blocks(expr).each do |block|
+    # TODO @error
+      $error = nil
+#         callback.call(block, expr)
+      evaluate expr, block
+      raise $error if $error
+    end
+  end
+
+#     def run_test block, expr
+#       expr = @compiler.parse_expr expr if expr.kind_of? String
+#       block = get_blocks(expr, [block]).first or return
+#       evaluate expr, block
+#     end
+
+  # Evaluate a TestML method call.
+  def evaluate expr, block
+    expr = ['', expr] if expr.kind_of? String
+    func = expr.first
+    args = expr[1..expr.length-1].collect do |ex|
+      if ex.kind_of? Array
+        evaluate ex, block
+      elsif ex =~ /\A\*(\w+)\z/
+        block[:points][$1]
+      else
+        ex
+      end
+    end
+    return if $error and func != 'Catch'
+    return args.first if func.empty?
+    if %w(Equal Match).include? func
+      args << block
+      method = self.method(func)
+    else
+      method = @bridge.method(func)
+    end
+    begin
+      return method.call(*args)
+    rescue => e
+      $error = e
+    end
+  end
+
+  # Get the data blocks that apply to an expression.
+  def get_blocks expr, blocks=@blocks
+    want = expr.flatten.grep(/^\*/).collect{|ex| ex.gsub /^\*/, ''}
+    return [nil] if want.empty?
+    only = blocks.select{|block| block['ONLY']}
+    blocks = only unless only.empty?
+    found = []
+    blocks.each do |block|
+      next if block['SKIP']
+      ok = true
+      want.each do |w|
+        unless block[:points][w]
+          ok = false
+          break
+        end
+      end
+      if ok
+        found << block
+        break if block['LAST']
+      end
+    end
+    return found
+  end
+
+  def Equal got, want, block
+    @count += 1
+    block ||= {:label => "Test ##{@count}"}
+    label = block.kind_of?(String) ? block : block[:label]
+    if got != want
+      if respond_to? 'on_fail'
+        on_fail
+      elsif want.match /\n/
+        File.open('/tmp/got', 'w') {|f| f.write got}
+        File.open('/tmp/want', 'w') {|f| f.write want}
+        puts `diff -u /tmp/want /tmp/got`
+      end
+    end
+    @testcase.assert_equal want, got, label
+  end
+
+  def Match got, want, block
+    @count += 1
+    label = block.kind_of?(String) ? block : block[:label]
+    @testcase.assert_match want, got, label
   end
 end
 

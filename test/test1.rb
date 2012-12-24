@@ -1,8 +1,7 @@
 require 'testml/lite'
 require 'testml_bridge'
 
-TestML.require_or_skip 'json'
-TestML.require_or_skip 'yaml'
+TestML.require_or_skip 'json', 'yaml'
 
 testml = TestML::Test.new
 

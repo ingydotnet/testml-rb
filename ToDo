@@ -1,15 +1,18 @@
 + fix 1 == 1
 + move TestML::Compiler to a class
++ move TestML::Runtime to a class
++ testml.plan = 5
+
 - make work with pegex-rb
 - make a pegex-tml
-- move TestML::Runtime to a class
+
 - rake/testml/lite
   - use test/testml.yaml
   - copy tml files from source repo
   - generate .rb files from templates
-- testml.plan = 5
 - testml.block = [...]
 - TestML.require_or_skip 'x', 'y', 'z'
+- ~~ Match should use index, not regex
 - make require_or_skip not exit
   - maybe throw a special error
 - write doc
