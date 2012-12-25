@@ -25,8 +25,7 @@ task :testml do
     s = "#{source}/#{tmlfile}"
     t = "#{target}/#{tmlfile}"
     if (! File.exists?(t) or File.read(s) != File.read(t))
-      puts "Copying '#{rel s}' to '#{rel t}'"
-      cp s, t
+      cp rel(s), rel(t)
     end
     if template
       test = tmlfile.sub /\.tml$/, '.rb'
