@@ -9,7 +9,8 @@ In a file called +test/mytest.rb+:
 
     require 'testml/lite'
 
-    TestML::Test.new.document = <<'.'
+    TestML::Test.new(
+      :bridge => main.document = <<'.'
     Plan = 4;
 
     *x.add(*y) == *sum;

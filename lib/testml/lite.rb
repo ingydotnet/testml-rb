@@ -47,7 +47,6 @@ class TestML::TestCase < Test::Unit::TestCase;end
 # testml to run a test.
 class TestML::Test
   # These attributes are the API for TestML::Test.
-  attr_accessor :testname
   attr_accessor :tmlfile
   attr_accessor :bridge
   attr_accessor :document
@@ -55,6 +54,10 @@ class TestML::Test
   attr_accessor :blocks
   attr_accessor :plan
   attr_accessor :skip
+
+  # Useful for testing TestML::Test
+  attr_accessor :testname
+  attr_accessor :testfile
 
   # Private attributes
   attr_accessor :compiler
@@ -64,9 +67,9 @@ class TestML::Test
     # Set named attributes:
     attributes.each { |k,v| self.send "#{k}=", v }
 
-    # First order of business is to register this test object so that
-    # it can be called by the generated Test::Unit method later on.
-    @testfile = TestML.get_testfile
+    # Register this test object so that it can be called by the
+    # generated Test::Unit method later on.
+    @testfile ||= TestML.get_testfile
     testname = @testname ||= TestML.get_testname
     TestML.Tests[@testname] = self
 
@@ -81,8 +84,10 @@ class TestML::Test
     end
 
     # Initialize the object attributes:
-    @function = []
-    @blocks = []
+    @function ||= []
+    @blocks ||= []
+    @bridge ||= TestML::Bridge
+
     # Let caller initialize attributes:
     yield self if block_given?
   end
@@ -90,7 +95,6 @@ class TestML::Test
   # Finalize TestML::Test object, since user may have added things
   # since construction time. After this we can run the test.
   def finalize
-    @bridge ||= TestML::Bridge
     @bridge = @bridge.new unless @bridge.is_a? TestML::Bridge
     @function = [@function] unless @function.class == Array
     if @tmlfile

@@ -7,19 +7,20 @@
 + testml.require_or_skip 'x', 'y', 'z'
 + make require_or_skip not exit
 + TestML::Test constructor can take hash or block or nothing
++ rake/testml/lite
+  + use test/testml.yaml
+  + copy tml files from source repo
+  + generate .rb files from templates
 
 - Use test_plan in Test::Unit
 - Default bridge can be TestMLBridge
 - Also look in main for methods
 - Eliminate global $TestMLError
+  - Use a TestML class var?
+- Make a headless TestML::Test object
 
 - make work with pegex-rb
 - make a pegex-tml
-
-- rake/testml/lite
-  - use test/testml.yaml
-  - copy tml files from source repo
-  - generate .rb files from templates
 
 - write doc
   - look at rdoc and yard
