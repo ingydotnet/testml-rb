@@ -1,121 +1,102 @@
-require 'test/unit'
+# TestML::Lite - A Simpler Version of TestML
 
-# Make sure tests have access to the application libs and the testing
-# libs.
+
+require 'yaml'; def XXX *args; puts YAML.dump_stream args; exit; end
+
+
+# Make sure tests have access to the application libs and the testing libs.
 $:.unshift "#{Dir.getwd}/lib"
 $:.unshift "#{Dir.getwd}/test/lib"
 
 # Define the base TestML module, with a few helper class methods.
 module TestML
-  # TestML::Lite class does nothing, but let's put the VERSION here.
-  class Lite
-    VERSION = '0.0.2'
-  end
-
-  # As TestML::Test objects are created, they get put into this class
-  # hash variable keyed by the file name that instantiated them.
-  @@Tests = Hash.new
-  def self.Tests
-    @@Tests
-  end
-
-  # Find the first call-stack entry that looks like:
-  # .../test/xxx-yyy.rb
+  # Find the first call-stack entry that looks like: .../test/xxx-yyy.rb
   def self.get_testfile
-    caller.map { |s|
-      s.split(':').first
-    }.grep(/(^|\/)test\/[-\w]+\.rb$/).first or fail
+    caller.map {|s| s.split(':').first} \
+      .grep(/(^|\/)test\/[-\w]+\.rb$/).first
   end
 
   # Return something like 'test_xxx_yyy' as the test name.
   def self.get_testname
-    name = TestML.get_testfile
-    name.gsub!(/^(?:.*\/)?test\/([-\w+]+)\.rb$/, '\1').gsub(/[^\w]+/, '_')
+    name = TestML.get_testfile or return nil
+    name.gsub!(/^(?:.*\/)?test\/([-\w+]+)\.rb$/, '\1') \
+      .gsub!(/[^\w]+/, '_')
     return "test_#{name}"
   end
 end
 
-# This is the class that Test::Unit will use to run actual tests.
-# Every time that a test file creates a TestML::Test object, we
-# inject a method called "test_#{test_file_name}" into this class,
-# since we know that Test::Unit calls methods that begin with 'test'.
-class TestML::TestCase < Test::Unit::TestCase;end
+# Test files create TestML::Lite objects, which contain all the information
+# needed by TestML to run a test.
+class TestML::Lite
+  VERSION = '0.0.2'
 
-# Test files create TestML::Test objects, which inject runner methods
-# into TestML::TestCase so they will get caalled later. Each
-# TestML::Test object contains all the information needed by
-# testml to run a test.
-class TestML::Test
-  # These attributes are the API for TestML::Test.
-  attr_accessor :tmlfile
-  attr_accessor :bridge
-  attr_accessor :document
-  attr_accessor :function
+  # These attributes are the API for TestML::Lite.
+  attr_accessor :assertions
   attr_accessor :blocks
   attr_accessor :plan
   attr_accessor :skip
 
-  # Useful for testing TestML::Test
   attr_accessor :testname
-  attr_accessor :testfile
+  attr_accessor :compiler_class
+  attr_accessor :runtime_class
 
-  # Private attributes
-  attr_accessor :compiler
+  attr_accessor :function
   attr_accessor :runtime
+  attr_accessor :bridge
 
   def initialize attributes={}
+    # Initialize the object attributes with defaults:
+    @testfile = TestML.get_testfile
+    @testname = TestML.get_testname
+    @compiler_class = TestML::Lite::Compiler
+    @runtime_class = TestML::Lite::Runtime::Unit
+    @bridge = TestML::Lite::Bridge.new
+    @assertions = []
+    @blocks = []
+    @plan = nil
+    @skip = false
+    @run = false
+    @function = TestML::Lite::Function.new
+
     # Set named attributes:
     attributes.each { |k,v| self.send "#{k}=", v }
 
-    # Register this test object so that it can be called by the
-    # generated Test::Unit method later on.
-    @testfile ||= TestML.get_testfile
-    testname = @testname ||= TestML.get_testname
-    TestML.Tests[@testname] = self
-
-    # Generate a method that Test::Unit will discover and run. This
-    # method will run the tests defined in this TestML::Test object.
-    TestML::TestCase.send(:define_method, testname) do
-      test = TestML.Tests[testname] \
-        or fail "No test object for '#{testname}'"
-      test.finalize
-      test.runtime.testcase = self
-      test.runtime.run
-    end
-
-    # Initialize the object attributes:
-    @function ||= []
-    @blocks ||= []
-    @bridge ||= TestML::Bridge
-
-    # Let caller initialize attributes:
+    # Run caller block if given
     yield self if block_given?
+
+    # Register this test object so that it can be called by the generated
+    # Test::Unit method later on.
+    @testname ||= TestML.get_testname
+    @runtime_class.register self, @testname
+    @runtime = @runtime_class.new self
   end
 
-  # Finalize TestML::Test object, since user may have added things
-  # since construction time. After this we can run the test.
-  def finalize
-    @bridge = @bridge.new unless @bridge.is_a? TestML::Bridge
-    @function = [@function] unless @function.class == Array
-    if @tmlfile
-      if not @tmlfile.match /^\//
-        @tmlfile = "#{File.dirname @testfile}/#{@tmlfile}"
-      end
-      @document = File.read @tmlfile
-    end
-    @compiler = TestML::Compiler.new
-    if @document
-      @compiler.parse_document @document
-      @function.concat @compiler.function
-      @blocks.concat @compiler.blocks
-      @plan = @compiler.plan
-    end
-    @function.map! do |f|
-      f.class == String ? @compiler.parse_expr(f) : f
-    end
-    @runtime = TestML::Runtime.new(self)
+  def bridge= bridge
+    @bridge = (bridge.is_a? TestML::Lite::Bridge) ? bridge : bridge.new
   end
 
+  def document= document
+    @compiler ||= @compiler_class.new
+    @function = @compiler.compile document
+  end
+
+  def tmlfile= file
+    if not file.match /^\//
+      file = "#{File.dirname @testfile}/#{file}"
+    end
+    self.document = File.read file
+  end
+
+  # Finalize the TestML::Lite object and run it.
+  def run
+    return if @run
+    @function.blocks = @blocks if not @blocks.empty?
+    @function.setvar('Plan', @plan) if @plan
+    @runtime.run
+    @run = true
+  end
+
+  # TODO Change this to required=
   # Skip the test file unless we can require the requisite library(s)
   def require_or_skip library, *libraries
     libraries.unshift library
@@ -133,15 +114,13 @@ end
 # This is the Lite version of the TestML compiler. It can parse
 # simple statements and assertions and also parse the TestML data
 # format.
-class TestML::Compiler
+class TestML::Lite::Compiler
   attr_accessor :function
-  attr_accessor :blocks
   attr_accessor :plan
   attr_accessor :testml_version
 
-  def parse_document document
-    @function = []
-    @blocks = []
+  def compile document
+    @function = TestML::Lite::Function.new
     lines = document.lines.to_a.map &:chomp
     while not lines.empty?
       line = lines.shift
@@ -153,22 +132,23 @@ class TestML::Compiler
       end
       if line.rstrip.match /^%TestML +(\d+\.\d+\.\d+)$/
         @testml_version = $1
-      elsif line.strip.match /^Plan *= *(\d+);$/
-        @plan = $1.to_i
-      elsif line.strip.match /^.*(?:==|~~).*;$/
-        @function << line.chop
+      elsif line.strip.match /^Plan *= *(\d+)$/
+        @function.setvar('Plan', $1.to_i)
+      elsif line.strip.match /^.*(?:==|~~).*$/
+        @function.statements << compile_assertion(line)
       else
         lines.unshift line
-        fail "Failed to parse TestML document, here:\n" +
+        fail "Failed to parse TestML::Lite document, here:\n" +
           lines.join($/)
       end
     end
     unless lines.empty?
-      @blocks = parse_data lines.push('').join $/
+      @function.data = compile_data lines.push('').join $/
     end
+    return @function
   end
 
-  def parse_expr expr
+  def compile_assertion expr
     left, op, right = [], nil, nil
     side = left
     while expr.length != 0
@@ -209,7 +189,7 @@ class TestML::Compiler
     return token
   end
 
-  def parse_data string
+  def compile_data string
     string.gsub! /^#.*\n/, ''
     string.gsub! /^\\/, ''
     string.gsub! /^\s*\n/, ''
@@ -245,12 +225,13 @@ class TestML::Compiler
   end
 end
 
-# The Runtime object is responsible for running the TestML code and
-# applying it Ruby's Test::Unit.
-class TestML::Runtime
-  attr_accessor :testcase
+#------------------------------------------------------------------------------
+# The Runtime object is responsible for running the TestML code and applying it
+# to the Ruby test framework (default is Test::Unit).
+class TestML::Lite::Runtime
+  attr_accessor :test
 
-  def initialize(test)
+  def initialize test
     @test = test
   end
 
@@ -260,7 +241,7 @@ class TestML::Runtime
       return
     end
     @count = 0
-    @test.function.each {|f| execute(f)}
+    @test.function.statements.each {|s| execute(s)}
     if plan = @test.plan
       @testcase.assert_equal plan, @count, "Plan #{plan} tests"
     end
@@ -268,7 +249,7 @@ class TestML::Runtime
 
   # Execute an expression/function.
   def execute expr, callback=nil
-    get_blocks(expr).each do |block|
+    get_blocks(expr, test.function.data).each do |block|
       # TODO eliminate this global variable.
       $TestMLError = nil
       evaluate expr, block
@@ -305,12 +286,12 @@ class TestML::Runtime
   end
 
   # Get the data blocks that apply to an expression.
-  def get_blocks expr, blocks=@test.blocks
-    want = expr.flatten.grep(/^\*/).collect{|ex| ex.gsub /^\*/, ''}
+  def get_blocks expr, blocks
+    want = expr.flatten.grep(/^\*/).collect{|p| p.gsub /^\*/, ''}
     return [nil] if want.empty?
     only = blocks.select{|block| block['ONLY']}
     blocks = only unless only.empty?
-    found = []
+    got = []
     blocks.each do |block|
       next if block['SKIP']
       ok = true
@@ -321,11 +302,11 @@ class TestML::Runtime
         end
       end
       if ok
-        found << block
+        got << block
         break if block['LAST']
       end
     end
-    return found
+    return got
   end
 
   def Equal got, want, block
@@ -354,7 +335,69 @@ class TestML::Runtime
   end
 end
 
-class TestML::Bridge
+#------------------------------------------------------------------------------
+require 'test/unit'
+
+# This is the class that Test::Unit will use to run actual tests.  Every time
+# that a test file creates a TestML::Lite object, we inject a method called
+# "test_#{test_file_name}" into this class, since we know that Test::Unit calls
+# methods that begin with 'test'.
+class TestML::Lite::TestCase < Test::Unit::TestCase;end
+
+class TestML::Lite::Runtime::Unit < TestML::Lite::Runtime
+  # As TestML::Lite objects are created, they get put into this class hash
+  # variable keyed by the file name that instantiated them.
+  @@Tests = Hash.new
+  def self.Tests;@@Tests end
+
+  def self.register test, testname
+    if testname
+      fail "There is already a test with the name '#{testname}" \
+        if TestML::Lite::Runtime::Unit.Tests[testname]
+      TestML::Lite::Runtime::Unit.Tests[testname] = test
+    end
+
+    # Generate a method that Test::Unit will discover and run. This method will
+    # run the tests defined in this TestML::Lite object.
+    TestML::Lite::TestCase.send(:define_method, testname) do
+      test = TestML::Lite::Runtime::Unit.Tests[testname] \
+        or fail "No test object for '#{testname}'"
+      test.runtime.testcase = self
+      test.run
+    end
+  end
+
+  attr_accessor :testcase
+
+end
+
+#------------------------------------------------------------------------------
+class TestML::Lite::Function
+  attr_accessor :statements
+  attr_accessor :namespace
+  attr_accessor :data
+
+  def initialize
+    @signature = []
+    @statements = []
+    @namespace = {}
+    @data = []
+  end
+
+  def getvar name
+    @namespace[name]
+  end
+
+  def setvar name, object
+    @namespace[name] = object
+  end
+
+  def forgetvar name
+    @namespace.delete name
+  end
+end
+
+class TestML::Lite::Bridge
   def Catch any=nil
     fail "Catch called, but no error occurred" unless $TestMLError
     error = $TestMLError

@@ -12,7 +12,6 @@
   + copy tml files from source repo
   + generate .rb files from templates
 
-- Use test_plan in Test::Unit
 - Default bridge can be TestMLBridge
 - Also look in main for methods
 - Eliminate global $TestMLError

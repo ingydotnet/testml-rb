@@ -1,10 +1,9 @@
 require 'testml/lite'
 require 'testml_bridge'
 
-TestML::Test.new(
+TestML::Lite.new(
   testname: 'test_attributes',
   tmlfile: 'testml/basics.tml',
   bridge: TestMLBridge,
   skip: false,
-  plan: 123,
 )

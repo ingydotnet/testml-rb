@@ -1,6 +1,6 @@
 require './lib/testml/lite'
 
-class TestMLBridge < TestML::Bridge
+class TestMLBridge < TestML::Lite::Bridge
   def uppercase string
     string.upcase
   end

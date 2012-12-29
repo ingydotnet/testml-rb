@@ -5,12 +5,12 @@
 
 # We should support the Plan variable in testml-lite. This will be especially
 # useful in this test.
-Plan = 4;
+Plan = 4
 
 # The bridge class will need to support 'uppercase' and 'lowercase' methods.
-*text.uppercase == *upper;
-*text.lowercase == *lower;
-*lower.uppercase == *upper.lowercase.uppercase;
+*text.uppercase == *upper
+*text.lowercase == *lower
+*lower.uppercase == *upper.lowercase.uppercase
 
 
 # Define 2 data blocks. 'Test One' is the block label.
