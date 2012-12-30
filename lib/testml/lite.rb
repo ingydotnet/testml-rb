@@ -1,6 +1,9 @@
 # TestML::Lite - A Simpler Version of TestML
 
 
+# TODO Move classes to separate files
+
+
 # XXX
 require 'yaml'; def XXX *args; args.each {|a|puts YAML.dump a}; exit; end
 
@@ -356,12 +359,7 @@ end
 #------------------------------------------------------------------------------
 require 'test/unit'
 
-# This is the class that Test::Unit will use to run actual tests.  Every time
-# that a test file creates a TestML::Lite object, we inject a method called
-# "test_#{test_file_name}" into this class, since we know that Test::Unit calls
-# methods that begin with 'test'.
-class TestML::Lite::TestCase < Test::Unit::TestCase;end
-
+# This is the Runtime class that support Ruby's Test::Unit test framework.
 class TestML::Lite::Runtime::Unit < TestML::Lite::Runtime
   # As TestML::Lite objects are created, they get put into this class hash
   # variable keyed by the file name that instantiated them.
@@ -390,25 +388,35 @@ class TestML::Lite::Runtime::Unit < TestML::Lite::Runtime
   def EQ got, want
     @count += 1
     @testcase.assert_equal want, got, get_label
-
-# TODO Move this logic to testml/diff
-if got != want
-  if respond_to? 'on_fail'
-    on_fail
-  elsif want.match /\n/
-    File.open('/tmp/got', 'w') {|f| f.write got}
-    File.open('/tmp/want', 'w') {|f| f.write want}
-    puts `diff -u /tmp/want /tmp/got`
-  end
-end
-
+                # TODO Move this logic to testml/diff
+                if got != want
+                  if respond_to? 'on_fail'
+                    on_fail
+                  elsif want.match /\n/
+                    File.open('/tmp/got', 'w') {|f| f.write got}
+                    File.open('/tmp/want', 'w') {|f| f.write want}
+                    puts `diff -u /tmp/want /tmp/got`
+                  end
+                end
   end
 
   def HAS got, want
     @count += 1
     @testcase.assert_match want, got, get_label
   end
+
+  # TODO Support OK
+  def OK got
+    @count += 1
+    fail 'TODO'
+  end
 end
+
+# This is the class that Test::Unit will use to run actual tests.  Every time
+# that a test file creates a TestML::Lite object, we inject a method called
+# "test_#{test_file_name}" into this class, since we know that Test::Unit calls
+# methods that begin with 'test'.
+class TestML::Lite::TestCase < Test::Unit::TestCase;end
 
 #------------------------------------------------------------------------------
 class TestML::Lite::Function
@@ -461,6 +469,7 @@ class TestML::Lite::Library::Standard
     @runtime.error = msg
   end
 
+  # TODO @error should probably just be the error message string
   def Catch any=nil
     fail "Catch called, but no error occurred" unless @runtime.error
     error = @runtime.error
