@@ -11,11 +11,15 @@
   + use test/testml.yaml
   + copy tml files from source repo
   + generate .rb files from templates
++ Eliminate global $TestMLError
 
-- Default bridge can be TestMLBridge
-- Also look in main for methods
-- Eliminate global $TestMLError
-  - Use a TestML class var?
+- Support Point as first-class function
+- Support Set, Get and Del
+- Support surrogate TestML Function as Ruby function
+- Add Label support
+
+
+
 - Make a headless TestML::Test object
 
 - make work with pegex-rb
@@ -26,6 +30,8 @@
 - release to rubygems
 
 - port to perl
+- port to python
+- port to perl6
 
 
 == Ideas

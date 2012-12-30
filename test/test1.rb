@@ -1,7 +1,7 @@
 require 'testml/lite'
 require 'testml_bridge'
 
-testml = TestML::Test.new do |t|
+testml = TestML::Lite.new do |t|
   t.require_or_skip 'json', 'yaml'
   t.bridge = TestMLBridge
   t.document = <<'...'

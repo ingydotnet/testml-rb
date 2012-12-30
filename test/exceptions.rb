@@ -2,6 +2,6 @@ require 'testml/lite'
 require 'testml_bridge'
 
 TestML::Lite.new(
-  tmlfile: 'testml/basics.tml',
+  tmlfile: 'testml/exceptions.tml',
   bridge: TestMLBridge,
 )

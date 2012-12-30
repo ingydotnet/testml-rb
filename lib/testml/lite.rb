@@ -1,14 +1,17 @@
 # TestML::Lite - A Simpler Version of TestML
 
 
-require 'yaml'; def XXX *args; puts YAML.dump_stream args; exit; end
+# XXX
+require 'yaml'; def XXX *args; args.each {|a|puts YAML.dump a}; exit; end
 
 
 # Make sure tests have access to the application libs and the testing libs.
 $:.unshift "#{Dir.getwd}/lib"
 $:.unshift "#{Dir.getwd}/test/lib"
 
-# Define the base TestML module, with a few helper class methods.
+# Define the base TestML module
+# TODO Move helper methods to TestML::Lite
+#      This module should not collide with TestML
 module TestML
   # Find the first call-stack entry that looks like: .../test/xxx-yyy.rb
   def self.get_testfile
@@ -25,6 +28,7 @@ module TestML
   end
 end
 
+#------------------------------------------------------------------------------
 # Test files create TestML::Lite objects, which contain all the information
 # needed by TestML to run a test.
 class TestML::Lite
@@ -32,7 +36,7 @@ class TestML::Lite
 
   # These attributes are the API for TestML::Lite.
   attr_accessor :assertions
-  attr_accessor :blocks
+  attr_accessor :data
   attr_accessor :plan
   attr_accessor :skip
 
@@ -43,6 +47,7 @@ class TestML::Lite
   attr_accessor :function
   attr_accessor :runtime
   attr_accessor :bridge
+  attr_accessor :library
 
   def initialize attributes={}
     # Initialize the object attributes with defaults:
@@ -51,8 +56,10 @@ class TestML::Lite
     @compiler_class = TestML::Lite::Compiler
     @runtime_class = TestML::Lite::Runtime::Unit
     @bridge = TestML::Lite::Bridge.new
+    @library = TestML::Lite::Library::Standard.new
+    # TODO assertions and data should be nil by default
     @assertions = []
-    @blocks = []
+    @data = []
     @plan = nil
     @skip = false
     @run = false
@@ -64,15 +71,18 @@ class TestML::Lite
     # Run caller block if given
     yield self if block_given?
 
-    # Register this test object so that it can be called by the generated
-    # Test::Unit method later on.
-    @testname ||= TestML.get_testname
+    # Register this test object so that it can be called by the test framework
+    # later on.
     @runtime_class.register self, @testname
     @runtime = @runtime_class.new self
   end
 
   def bridge= bridge
     @bridge = (bridge.is_a? TestML::Lite::Bridge) ? bridge : bridge.new
+  end
+
+  def library= library
+    @library = (library.is_a? TestML::Lite::Library) ? library : library.new
   end
 
   def document= document
@@ -90,8 +100,16 @@ class TestML::Lite
   # Finalize the TestML::Lite object and run it.
   def run
     return if @run
-    @function.blocks = @blocks if not @blocks.empty?
+    if not @assertions.empty?
+      @compiler ||= @compiler_class.new
+      @function.statements = @assertions.map do |a|
+        a.kind_of?(Array) ? a : @compiler.compile_assertion(a)
+      end
+    end
+    @function.data = @data if not @data.empty?
     @function.setvar('Plan', @plan) if @plan
+    @bridge.runtime = @runtime
+    @library.runtime = @runtime
     @runtime.run
     @run = true
   end
@@ -111,14 +129,17 @@ class TestML::Lite
   end
 end
 
+#------------------------------------------------------------------------------
 # This is the Lite version of the TestML compiler. It can parse
 # simple statements and assertions and also parse the TestML data
 # format.
 class TestML::Lite::Compiler
   attr_accessor :function
+  # TODO put plan into Plan var in @function
   attr_accessor :plan
   attr_accessor :testml_version
 
+  # support assignment statement for any variable
   def compile document
     @function = TestML::Lite::Function.new
     lines = document.lines.to_a.map &:chomp
@@ -132,10 +153,10 @@ class TestML::Lite::Compiler
       end
       if line.rstrip.match /^%TestML +(\d+\.\d+\.\d+)$/
         @testml_version = $1
-      elsif line.strip.match /^Plan *= *(\d+)$/
+      elsif line.strip.match /^Plan *= *(\d+);?$/
         @function.setvar('Plan', $1.to_i)
-      elsif line.strip.match /^.*(?:==|~~).*$/
-        @function.statements << compile_assertion(line)
+      elsif line.strip.match /^.*(?:==|~~).*;?$/
+        @function.statements << compile_assertion(line.sub /;$/, '')
       else
         lines.unshift line
         fail "Failed to parse TestML::Lite document, here:\n" +
@@ -154,7 +175,7 @@ class TestML::Lite::Compiler
     while expr.length != 0
       token = get_token expr
       if token =~ /^(==|~~)$/
-        op = token == '==' ? 'Equal' : 'Match'
+        op = token == '==' ? 'EQ' : 'HAS'
         left = side
         side = right = []
       else
@@ -199,7 +220,7 @@ class TestML::Lite::Compiler
       block.gsub! /\n+\z/, "\n"
     end
 
-    array = []
+    data = []
     blocks.each do |string_block|
       block = {}
       string_block.gsub! /^===\ +(.*?)\ *\n/, '' \
@@ -219,9 +240,9 @@ class TestML::Lite::Compiler
           block[key] = true
         end
       end
-      array << block
+      data << block
     end
-    return array
+    return data
   end
 end
 
@@ -230,11 +251,23 @@ end
 # to the Ruby test framework (default is Test::Unit).
 class TestML::Lite::Runtime
   attr_accessor :test
+  attr_accessor :block
+  attr_accessor :error
+
+  # TODO runtime base class should not know about Test::Unit @testcase
 
   def initialize test
     @test = test
   end
 
+  # These methods should be subclassed per test framework as appropriate
+  def EQ got, want;end
+  def HAS got, want;end
+  def OK got;end
+  def plan count;end
+  def skip;end
+
+  # Run the TestML test!
   def run
     if @test.skip
       @testcase.skip @test.skip
@@ -250,15 +283,15 @@ class TestML::Lite::Runtime
   # Execute an expression/function.
   def execute expr, callback=nil
     get_blocks(expr, test.function.data).each do |block|
-      # TODO eliminate this global variable.
-      $TestMLError = nil
+      @error = nil
       evaluate expr, block
-      raise $TestMLError if $TestMLError
+      raise @error if @error
     end
   end
 
   # Evaluate a TestML method call.
   def evaluate expr, block
+    @block = block
     expr = ['', expr] if expr.kind_of? String
     func = expr.first
     args = expr[1..expr.length-1].collect do |ex|
@@ -270,29 +303,32 @@ class TestML::Lite::Runtime
         ex
       end
     end
-    return if $TestMLError and func != 'Catch'
+    return if @error and func != 'Catch'
+    # TODO func should not be ''
     return args.first if func.empty?
-    if %w(Equal Match).include? func
-      args << block
-      method = self.method(func)
-    else
-      method = @test.bridge.method(func)
-    end
     begin
-      return method.call(*args)
+      return lookup_method(func).call(*args)
     rescue => e
-      $TestMLError = e
+      @error = e
     end
   end
 
+  def lookup_method func
+    return self.method(func) if %w(EQ HAS OK).include? func
+    begin return @test.bridge.method(func)
+    rescue NameError; end
+    begin return @test.library.method(func)
+    rescue NameError; end
+  end
+
   # Get the data blocks that apply to an expression.
-  def get_blocks expr, blocks
+  def get_blocks expr, data
     want = expr.flatten.grep(/^\*/).collect{|p| p.gsub /^\*/, ''}
     return [nil] if want.empty?
-    only = blocks.select{|block| block['ONLY']}
-    blocks = only unless only.empty?
-    got = []
-    blocks.each do |block|
+    only = data.select{|block| block['ONLY']}
+    data = only unless only.empty?
+    blocks = []
+    data.each do |block|
       next if block['SKIP']
       ok = true
       want.each do |w|
@@ -302,36 +338,18 @@ class TestML::Lite::Runtime
         end
       end
       if ok
-        got << block
+        blocks << block
         break if block['LAST']
       end
     end
-    return got
+    return blocks
   end
 
-  def Equal got, want, block
-    @count += 1
-    label = block ?
-      block.kind_of?(String) ? block : block[:label] :
+  def get_label
+    return(@block ?
+      @block.kind_of?(String) ? @block : @block[:label] :
       "Test ##{@count}"
-    if got != want
-      if respond_to? 'on_fail'
-        on_fail
-      elsif want.match /\n/
-        File.open('/tmp/got', 'w') {|f| f.write got}
-        File.open('/tmp/want', 'w') {|f| f.write want}
-        puts `diff -u /tmp/want /tmp/got`
-      end
-    end
-    @testcase.assert_equal want, got, label
-  end
-
-  def Match got, want, block
-    @count += 1
-    label = block ?
-      block.kind_of?(String) ? block : block[:label] :
-      "Test ##{@count}"
-    @testcase.assert_match want, got, label
+    )
   end
 end
 
@@ -369,6 +387,27 @@ class TestML::Lite::Runtime::Unit < TestML::Lite::Runtime
 
   attr_accessor :testcase
 
+  def EQ got, want
+    @count += 1
+    @testcase.assert_equal want, got, get_label
+
+# TODO Move this logic to testml/diff
+if got != want
+  if respond_to? 'on_fail'
+    on_fail
+  elsif want.match /\n/
+    File.open('/tmp/got', 'w') {|f| f.write got}
+    File.open('/tmp/want', 'w') {|f| f.write want}
+    puts `diff -u /tmp/want /tmp/got`
+  end
+end
+
+  end
+
+  def HAS got, want
+    @count += 1
+    @testcase.assert_match want, got, get_label
+  end
 end
 
 #------------------------------------------------------------------------------
@@ -397,13 +436,9 @@ class TestML::Lite::Function
   end
 end
 
+#------------------------------------------------------------------------------
 class TestML::Lite::Bridge
-  def Catch any=nil
-    fail "Catch called, but no error occurred" unless $TestMLError
-    error = $TestMLError
-    $TestMLError = nil
-    return error.message
-  end
+  attr_accessor :runtime
 
   def String string
     return super string
@@ -411,5 +446,25 @@ class TestML::Lite::Bridge
 
   def Number number
     return Integer number
+  end
+end
+
+#------------------------------------------------------------------------------
+class TestML::Lite::Library
+  attr_accessor :runtime
+end
+
+class TestML::Lite::Library::Standard
+  attr_accessor :runtime
+
+  def Throw msg
+    @runtime.error = msg
+  end
+
+  def Catch any=nil
+    fail "Catch called, but no error occurred" unless @runtime.error
+    error = @runtime.error
+    @runtime.error = nil
+    return error.respond_to?('message') ? error.message : error
   end
 end

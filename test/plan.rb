@@ -1,8 +1,8 @@
 require 'testml/lite'
 
-test = TestML::Test.new
+test = TestML::Lite.new
 test.plan = 3
-test.function = [
+test.assertions = [
   "'xyzzy' == 'xyzzy'",
   "123 == 123",
   "'OKOKOK' ~~ 'OK'",

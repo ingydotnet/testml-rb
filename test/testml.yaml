@@ -4,7 +4,7 @@ template: |
   require 'testml/lite'
   require 'testml_bridge'
 
-  TestML::Test.new(
+  TestML::Lite.new(
     tmlfile: '%{tmlfile}',
     bridge: TestMLBridge,
   )
