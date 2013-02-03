@@ -11,7 +11,6 @@ module TestML;class Lite;end;end
 # Load the various classes
 require 'testml/lite/bridge'
 require 'testml/lite/compiler'
-require 'testml/lite/function'
 require 'testml/lite/runtime'
 require 'testml/lite/runtime/unit'
 require 'testml/lite/library'
