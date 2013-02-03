@@ -24,16 +24,16 @@ class TestML::Lite
   VERSION = '0.0.2'
 
   # These attributes are the API for TestML::Lite.
-  attr_accessor :assertions
+  attr_accessor :assertions # XXX
   attr_accessor :data
   attr_accessor :plan
   attr_accessor :skip
 
-  attr_accessor :testname
-  attr_accessor :compiler_class
-  attr_accessor :runtime_class
+  attr_accessor :name
+  attr_accessor :compiler_class  # combine with compiler (ie create compiler)
+  attr_accessor :runtime_class   # combine with runtime
 
-  attr_accessor :function
+  attr_accessor :function        # XXX this should be in runtime object
   attr_accessor :runtime
   attr_accessor :bridge
   attr_accessor :library
@@ -41,7 +41,7 @@ class TestML::Lite
   def initialize attributes={}
     # Initialize the object attributes with defaults:
     @testfile = TestML::Lite.get_testfile
-    @testname = TestML::Lite.get_testname
+    @name = TestML::Lite.get_testname
     @compiler_class = TestML::Lite::Compiler
     @runtime_class = TestML::Lite::Runtime::Unit
     @bridge = TestML::Lite::Bridge.new
@@ -62,7 +62,7 @@ class TestML::Lite
 
     # Register this test object so that it can be called by the test framework
     # later on.
-    @runtime_class.register self, @testname
+    @runtime_class.register self, @name
     @runtime = @runtime_class.new self
   end
 
@@ -74,16 +74,15 @@ class TestML::Lite
     @library = (library.is_a? TestML::Lite::Library) ? library : library.new
   end
 
-  def document= document
-    @compiler ||= @compiler_class.new
-    @function = @compiler.compile document
-  end
-
-  def tmlfile= file
-    if not file.match /^\//
-      file = "#{File.dirname @testfile}/#{file}"
+  def testml= testml
+    if not testml.match /\n/
+      if not testml.match /^\//
+        testml = "#{File.dirname @testfile}/#{testml}"
+      end
+      testml = File.read testml
     end
-    self.document = File.read file
+    @compiler ||= @compiler_class.new
+    @function = @compiler.compile testml
   end
 
   # Finalize the TestML::Lite object and run it.

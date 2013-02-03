@@ -1,4 +1,3 @@
-#------------------------------------------------------------------------------
 class TestML::Lite::Function
   attr_accessor :statements
   attr_accessor :namespace

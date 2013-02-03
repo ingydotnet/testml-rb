@@ -1,10 +1,10 @@
 require 'testml/lite'
 require 'testml_bridge'
 
-testml = TestML::Lite.new do |t|
+TestML::Lite.new do |t|
   t.required = 'json', 'yaml'
   t.bridge = TestMLBridge
-  t.document = <<'...'
+  t.testml = <<'...'
 Plan = 1;
 
 *json.json_load.yaml_dump == *yaml;
