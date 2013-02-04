@@ -1,3 +1,29 @@
-Plan = 1
+%TestML 0.1.0
 
-Throw("O NOES").Catch == "O NOES"
+Plan = 3
+
+*testml_stream.compile_testml().Catch().msg() ~~ *error
+
+=== No TestML directive
+--- testml_stream
+# A comment
+*foo == *bar
+--- error: No TestML directive found
+--- line: 2
+
+=== Missing semicolon
+--- testml_stream
+\%TestML 0.1.0
+*foo == *bar
+*foo == *bar
+--- error: You seem to be missing a semicolon
+--- line: 2
+
+=== Missing semicolon on a non assertion
+--- testml_stream
+\%TestML 0.1.0
+*foo == *bar
+*foo()
+*foo == *bar
+--- error: You seem to be missing a semicolon
+--- line: 2

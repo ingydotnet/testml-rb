@@ -1,10 +1,11 @@
 + Check irc
 + Turn testml-lite into testml
-- Eliminate explicit.rb and plan.rb
-- Combine testml.tml and testml-lite.tml
++ Eliminate explicit.rb and plan.rb
++ Combine testml.tml and testml-lite.tml
 - Port TestML::Runtime(.pm) to ruby
 - Make all tests pass
-- Think on standard lib
+- Code Review
+  - Think on standard lib
 
 
 

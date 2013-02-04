@@ -2,6 +2,6 @@ require 'testml'
 require 'testml_bridge'
 
 TestML.new(
-  testml: 'testml/basics.tml',
+  testml: 'testml/dataless.tml',
   bridge: TestMLBridge,
 )

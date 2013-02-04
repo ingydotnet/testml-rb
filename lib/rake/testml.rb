@@ -21,17 +21,19 @@ task :testml do
     or fail "'#{conf.source}' directory does not exist"
   Dir.exists? target or mkdir target
   template = conf['template']
-  Dir.new(source).grep(/\.tml$/).each do |tmlfile|
-    s = "#{source}/#{tmlfile}"
-    t = "#{target}/#{tmlfile}"
+  skip = conf['skip'] || []
+  Dir.new(source).grep(/\.tml$/).each do |file|
+    next if skip.include? file
+    s = "#{source}/#{file}"
+    t = "#{target}/#{file}"
     if (! File.exists?(t) or File.read(s) != File.read(t))
       cp rel(s), rel(t)
     end
     if template
-      test = tmlfile.sub /\.tml$/, '.rb'
+      test = file.sub /\.tml$/, '.rb'
       test = File.expand_path test, dir
       hash = {
-        tmlfile: rel(t, dir),
+        file: rel(t, dir),
       }
       code = template % hash
       if ! File.exists?(test) or code != File.read(test)

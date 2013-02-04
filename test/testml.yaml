@@ -1,10 +1,17 @@
-source: ../../testml-lite-tml  # merge with testml-tml
+source: ../../testml-tml
 target: ./testml
 template: |
   require 'testml'
   require 'testml_bridge'
 
   TestML.new(
-    tmlfile: '%{tmlfile}',
+    testml: '%{file}',
     bridge: TestMLBridge,
   )
+skip:
+- comments.tml
+- data.tml
+- external1.tml
+- external2.tml
+- syntax.tml
+- topic.tml

@@ -3,8 +3,12 @@
 
 %TestML 0.1.0
 
-# We should support the Plan variable in testml-lite. This will be especially
-# useful in this test.
+# The title of the test. Goes into a special global variable. Variables
+# strating with uppercase letter usually belong to TestML. Title may or may
+# not be used by a framework, but still nicely self-documenting.
+Title = 'A Basic TestML File'
+
+# The Plan global variable indicates the expected number of tests.
 Plan = 4
 
 # The bridge class will need to support 'uppercase' and 'lowercase' methods.

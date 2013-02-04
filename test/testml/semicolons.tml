@@ -1,5 +1,5 @@
 # Trailing semicolons are allowed, but we only allow one statement per line in
-# testml-lite.
+# TestML.
 
 %TestML 0.1.0
 
