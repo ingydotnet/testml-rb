@@ -1,5 +1,4 @@
-#------------------------------------------------------------------------------
-class TestML::Lite::Bridge
+class TestML::Bridge
   attr_accessor :runtime
 
   def String string

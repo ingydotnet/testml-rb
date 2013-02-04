@@ -1,7 +1,7 @@
 # Test the ~~ Match operator
-require 'testml/lite'
+require 'testml'
 
-TestML::Lite.new.testml = <<'...'
+TestML.new.testml = <<'...'
 %TestML 0.1.0
 
 Plan = 1;

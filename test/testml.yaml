@@ -1,10 +1,10 @@
-source: ../../testml-lite-tml
+source: ../../testml-lite-tml  # merge with testml-tml
 target: ./testml
 template: |
-  require 'testml/lite'
+  require 'testml'
   require 'testml_bridge'
 
-  TestML::Lite.new(
+  TestML.new(
     tmlfile: '%{tmlfile}',
     bridge: TestMLBridge,
   )

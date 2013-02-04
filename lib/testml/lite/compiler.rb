@@ -1,6 +1,9 @@
 ##
 # This is the Lite version of the TestML compiler. It can parse simple
 # statements and assertions and also parse the TestML data format.
+
+class TestML::Lite;end
+
 class TestML::Lite::Compiler
   attr_accessor :function
   # TODO put plan into Plan var in @function
@@ -9,7 +12,7 @@ class TestML::Lite::Compiler
 
   # support assignment statement for any variable
   def compile document
-    @function = TestML::Lite::Function.new
+    @function = TestML::Function.new
     lines = document.lines.to_a.map &:chomp
     while not lines.empty?
       line = lines.shift

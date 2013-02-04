@@ -1,8 +1,8 @@
 # Use the explicit TestML::Test API
-require 'testml/lite'
+require 'testml'
 require 'testml_bridge'
 
-test = TestML::Lite.new do |t|
+test = TestML.new do |t|
   t.plan = 2
   t.bridge = TestMLBridge
 end

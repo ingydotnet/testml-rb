@@ -1,57 +1,59 @@
 ##
-# TestML::Lite - A Simpler Version of TestML
+# TestML - An Acmeist and Data Driven test framework
 
 # Make sure tests have access to the application libs and the testing libs.
 $:.unshift "#{Dir.getwd}/lib"
 $:.unshift "#{Dir.getwd}/test/lib"
 
-# Initialize the TestML::Lite namespace
-module TestML;class Lite;end;end
+# Initialize the TestML namespace
+class TestML;end
 
 # Load the various classes
-require 'testml/lite/bridge'
+require 'testml/bridge'
 require 'testml/lite/compiler'
-require 'testml/lite/runtime'
-require 'testml/lite/runtime/unit'
-require 'testml/lite/library'
-require 'testml/lite/library/standard'
+require 'testml/runtime'
+require 'testml/runtime/unit'
+require 'testml/library'
+require 'testml/library/standard'
 
 #------------------------------------------------------------------------------
-# Test files create TestML::Lite objects, which contain all the information
-# needed by TestML to run a test.
-class TestML::Lite
+# Test files create TestML objects, which contain all the information needed by
+# TestML to run a test.
+class TestML
   VERSION = '0.0.2'
 
-  # These attributes are the API for TestML::Lite.
+  # These attributes are the API for TestML.
+
+  # TODO remove these 4:
   attr_accessor :assertions # XXX
   attr_accessor :data
   attr_accessor :plan
   attr_accessor :skip
+  attr_accessor :function        # XXX this should be in runtime object
 
   attr_accessor :name
   attr_accessor :compiler_class  # combine with compiler (ie create compiler)
   attr_accessor :runtime_class   # combine with runtime
 
-  attr_accessor :function        # XXX this should be in runtime object
   attr_accessor :runtime
   attr_accessor :bridge
   attr_accessor :library
 
   def initialize attributes={}
     # Initialize the object attributes with defaults:
-    @testfile = TestML::Lite.get_testfile
-    @name = TestML::Lite.get_testname
+    @testfile = TestML.get_testfile
+    @name = TestML.get_testname
     @compiler_class = TestML::Lite::Compiler
-    @runtime_class = TestML::Lite::Runtime::Unit
-    @bridge = TestML::Lite::Bridge.new
-    @library = TestML::Lite::Library::Standard.new
+    @runtime_class = TestML::Runtime::Unit
+    @bridge = TestML::Bridge.new
+    @library = TestML::Library::Standard.new
     # TODO assertions and data should be nil by default
     @assertions = []
     @data = []
     @plan = nil
     @skip = false
     @run = false
-    @function = TestML::Lite::Function.new
+    @function = TestML::Function.new
 
     # Set named attributes:
     attributes.each { |k,v| self.send "#{k}=", v }
@@ -66,11 +68,11 @@ class TestML::Lite
   end
 
   def bridge= bridge
-    @bridge = (bridge.is_a? TestML::Lite::Bridge) ? bridge : bridge.new
+    @bridge = (bridge.is_a? TestML::Bridge) ? bridge : bridge.new
   end
 
   def library= library
-    @library = (library.is_a? TestML::Lite::Library) ? library : library.new
+    @library = (library.is_a? TestML::Library) ? library : library.new
   end
 
   def testml= testml
@@ -84,7 +86,7 @@ class TestML::Lite
     @function = @compiler.compile testml
   end
 
-  # Finalize the TestML::Lite object and run it.
+  # Finalize the TestML object and run it.
   def run
     return if @run
     if not @assertions.empty?
@@ -121,7 +123,7 @@ class TestML::Lite
 
   # Return something like 'test_xxx_yyy' as the test name.
   def self.get_testname
-    name = TestML::Lite.get_testfile or return nil
+    name = TestML.get_testfile or return nil
     name.gsub!(/^(?:.*\/)?test\/([-\w+]+)\.rb$/, '\1') \
       .gsub!(/[^\w]+/, '_')
     return "test_#{name}"

@@ -1,7 +1,7 @@
 # encoding: utf-8
 
 GemSpec = Gem::Specification.new do |gem|
-  gem.name = 'testml-lite'
+  gem.name = 'testml'
   gem.version = '0.0.1'
   gem.license = 'MIT'
   gem.required_ruby_version = '>= 1.9.1'
@@ -10,8 +10,7 @@ GemSpec = Gem::Specification.new do |gem|
   gem.email = 'ingy@ingy.net'
   gem.summary = 'Acmeist Unit Test Framework'
   gem.description = <<-'.'
-TestML is an Acmeist testing framework. TestML::Lite is smaller bootstrap
-version of TestML.
+TestML is an Acmeist testing framework.
 .
   gem.homepage = 'http://testml.org'
 

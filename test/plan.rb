@@ -1,6 +1,6 @@
-require 'testml/lite'
+require 'testml'
 
-test = TestML::Lite.new
+test = TestML.new
 test.plan = 3
 test.assertions = [
   "'xyzzy' == 'xyzzy'",

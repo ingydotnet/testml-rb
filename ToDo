@@ -1,4 +1,4 @@
-- Check irc
++ Check irc
 - Turn testml-lite into testml
 - Combine testml.tml and testml-lite.tml
 - Port TestML::Runtime(.pm) to ruby

@@ -1,4 +1,4 @@
-class TestML::Lite::Library::Standard
+class TestML::Library::Standard
   attr_accessor :runtime
 
   def Throw msg

@@ -1,4 +1,4 @@
-class TestML::Lite::Library
+class TestML::Library
   attr_accessor :runtime
 end
 

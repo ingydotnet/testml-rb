@@ -2,7 +2,7 @@
 # The Runtime object is responsible for running the TestML code and applying it
 # to the Ruby test framework (default is Test::Unit).
 
-class TestML::Lite::Runtime
+class TestML::Runtime
   attr_accessor :test
   attr_accessor :block
   attr_accessor :error
@@ -107,7 +107,7 @@ class TestML::Lite::Runtime
 end
 
 # TestML Function object class
-class TestML::Lite::Function
+class TestML::Function
   attr_accessor :statements
   attr_accessor :namespace
   attr_accessor :data
