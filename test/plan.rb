@@ -1,6 +1,6 @@
 require 'testml'
 
-test = TestML.new
+test = TestML::Lite.new
 test.testml = <<'...'
 Plan = 3
 

@@ -7,9 +7,11 @@ $:.unshift "#{Dir.getwd}/test/lib"
 
 # Initialize the TestML namespace
 class TestML;end
+class TestML::Lite < TestML;end
 
 # Load the various classes
 require 'testml/bridge'
+require 'testml/compiler'
 require 'testml/lite/compiler'
 require 'testml/runtime'
 require 'testml/runtime/unit'
@@ -43,7 +45,7 @@ class TestML
     # Initialize the object attributes with defaults:
     @testfile = TestML.get_testfile
     @name = TestML.get_testname
-    @compiler_class = TestML::Lite::Compiler
+    @compiler_class ||= TestML::Compiler
     @runtime_class = TestML::Runtime::Unit
     @bridge = TestML::Bridge.new
     @library = TestML::Library::Standard.new
@@ -127,5 +129,12 @@ class TestML
     name.gsub!(/^(?:.*\/)?test\/([-\w+]+)\.rb$/, '\1') \
       .gsub!(/[^\w]+/, '_')
     return "test_#{name}"
+  end
+end
+
+class TestML::Lite < TestML
+  def initialize *args, &block
+    @compiler_class = TestML::Lite::Compiler
+    super *args, &block
   end
 end

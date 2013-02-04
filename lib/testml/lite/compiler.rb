@@ -2,8 +2,6 @@
 # This is the Lite version of the TestML compiler. It can parse simple
 # statements and assertions and also parse the TestML data format.
 
-class TestML::Lite;end
-
 class TestML::Lite::Compiler
   attr_accessor :function
   # TODO put plan into Plan var in @function
