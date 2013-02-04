@@ -1,9 +1,10 @@
 require 'testml'
 
 test = TestML.new
-test.plan = 3
-test.assertions = [
-  "'xyzzy' == 'xyzzy'",
-  "123 == 123",
-  "'OKOKOK' ~~ 'OK'",
-]
+test.testml = <<'...'
+Plan = 3
+
+'xyzzy' == 'xyzzy'
+123 == 123
+'OKOKOK' ~~ 'OK'
+...
