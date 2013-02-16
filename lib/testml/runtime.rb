@@ -141,8 +141,6 @@ end
       return try_call(@library, expression, expression.args, nil)
     end
 
-    require 'xxx'
-    YYY expression
     units = expression.units
     context = nil
 

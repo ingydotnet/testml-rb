@@ -69,6 +69,8 @@ class TestML::Lite::Compiler
         end
         transform = TestML::Transform.new(token[0], args, true)
         side.units << transform
+      when TestML::Object
+        side.units << token
       else
         XXX expr, token
       end
@@ -104,9 +106,9 @@ class TestML::Lite::Compiler
     elsif expr.sub! /^\s*(==|~~)\s*/, ''
       token = $1
     elsif expr.sub! /^(['"])(.*?)\1/, ''
-      token = ['String', $2]
+      token = TestML::Str.new($2)
     elsif expr.sub! /^(\d+)/, ''
-      token = ['Number', $2]
+      token = TestML::Num.new($2)
     elsif expr.sub! /^(\*\w+)\.?/, ''
       token = $1
     elsif expr.sub! /^(\w+)\.?/, ''
