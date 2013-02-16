@@ -1,4 +1,5 @@
 ##
+#return context
 # The Runtime object is responsible for running the TestML code and applying it
 # to the Ruby test framework (default is Test::Unit).
 
@@ -37,13 +38,14 @@ class TestML::Runtime
     @testml = test.testml
     @bridge = test.bridge
     @compiler_class = test.compiler_class
-    @function = compile_testml
     @library = test.library
     @test_number = 0
     @planned = false
   end
 
   def run
+    @function = compile_testml
+
     context = TestML::None.new 
     args = []
 
@@ -203,9 +205,8 @@ end
     context = callable.call(*args)
     if context.kind_of?(String)
       context = TestML::Str.new(context)
-    elsif !context.kind_of?(TestML::Str)
-      fail "Not a value we can deal with"
     end
+    return context
   end
 
   def get_point(point)
