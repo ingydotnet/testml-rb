@@ -1,1 +1,1 @@
-export DEV_TEST_FILES='test/arguments.rb'
+export DEV_TEST_FILES='test/arguments.rb test/basic.rb test/semicolons.rb'

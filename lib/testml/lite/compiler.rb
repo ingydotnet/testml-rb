@@ -24,8 +24,13 @@ class TestML::Lite::Compiler
       end
       if line.rstrip.match /^%TestML +(\d+\.\d+\.\d+)$/
         @testml_version = $1
-      elsif line.strip.match /^Plan *= *(\d+);?$/
-        @function.setvar('Plan', $1.to_i)
+      elsif line.strip.match /^(\w+) *= *(.+?);?$/
+        key, value = $1, $2
+        value.sub!(/^(['"])(.*)\1$/, $2)
+        value = value.match(/^\d+$/) \
+          ? TestML::Num.new(value)
+          : TestML::Str.new(value)
+        @function.setvar(key, value)
       elsif line.strip.match /^.*(?:==|~~).*;?$/
         @function.statements << compile_assertion(line.sub /;$/, '')
       else
@@ -90,8 +95,6 @@ class TestML::Lite::Compiler
     end
   end
 
-
-
   def get_token! expr
     if expr.sub! /^(\w+)\(([^\)]+)\)\.?/, ''
       token, args = [$1], $2
@@ -106,7 +109,7 @@ class TestML::Lite::Compiler
       token = ['Number', $2]
     elsif expr.sub! /^(\*\w+)\.?/, ''
       token = $1
-    elsif expr.sub! /^(\w+)/, ''
+    elsif expr.sub! /^(\w+)\.?/, ''
       token = [$1]
     else
       fail "Can't get token from '#{expr}'"

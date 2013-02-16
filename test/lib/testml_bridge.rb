@@ -1,12 +1,12 @@
 require './lib/testml'
 
 class TestMLBridge < TestML::Bridge
-  def my_upper string
+  def uppercase string
     string.value.upcase
   end
 
   def lowercase string
-    string.downcase
+    string.value.downcase
   end
 
   def combine *args

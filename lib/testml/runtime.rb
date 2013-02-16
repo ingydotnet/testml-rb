@@ -135,11 +135,14 @@ end
   def run_expression expression
     if expression.kind_of? TestML::Point
       return get_point(expression)
-    end
-    if expression.kind_of? TestML::Object
+    elsif expression.kind_of? TestML::Object
       return expression
+    elsif expression.kind_of? TestML::Transform
+      return try_call(@library, expression, expression.args, nil)
     end
 
+    require 'xxx'
+    YYY expression
     units = expression.units
     context = nil
 
@@ -181,18 +184,11 @@ end
           else
             fail "Unexpected callable"
           end
-        elsif callable = @bridge.method(unit.name.to_sym)
-          args.unshift context if context
-          context = callable.call(*args)
-          if context.kind_of?(String)
-            context = TestML::Str.new(context)
-          elsif !context.kind_of?(TestML::Str)
-            fail "Not a value we can deal with"
-          end
-        elsif callable = @library.method(unit.name.to_sym)
-          XXX unit
         else
-          fail "Can't find TestML method #{unit.name}"
+          context =
+            try_call(@bridge, unit, args, context) ||
+            try_call(@library, unit, args, context) ||
+            fail("Can't find TestML method #{unit.name}")
         end
       when TestML::Point
         context = get_point(unit)
@@ -203,6 +199,16 @@ end
     return context
   end
 
+  def try_call(transformer, unit, args, context)
+    callable = transformer.method(unit.name.to_sym) or return
+    args.unshift context if context
+    context = callable.call(*args)
+    if context.kind_of?(String)
+      context = TestML::Str.new(context)
+    elsif !context.kind_of?(TestML::Str)
+      fail "Not a value we can deal with"
+    end
+  end
 
   def get_point(point)
     TestML::Str.new(@function.getvar('Block')[:points][point.name])
