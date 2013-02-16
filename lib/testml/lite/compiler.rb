@@ -8,6 +8,8 @@ class TestML::Lite::Compiler
   attr_accessor :plan
   attr_accessor :testml_version
 
+  POINT = /^\*(\w+)/
+
   # support assignment statement for any variable
   def compile document
     @function = TestML::Function.new
@@ -39,40 +41,73 @@ class TestML::Lite::Compiler
   end
 
   def compile_assertion expr
-    left, op, right = [], nil, nil
+    left, op, right = TestML::Expression.new, nil, nil
     side = left
+    points = []
     while expr.length != 0
-      token = get_token expr
-      if token =~ /^(==|~~)$/
-        op = token == '==' ? 'EQ' : 'HAS'
+      token = get_token! expr
+      case token
+      when POINT
+        side.units << make_unit(token, points)
+      when /^(==|~~)$/
+        name = token == '==' ? 'EQ' : 'HAS'
         left = side
-        side = right = []
+        side = right = TestML::Expression.new
+        assertion = TestML::Assertion.new(name, right)
+      when Array
+        args = token[1..-1].collect do |arg|
+          if arg =~ /\./
+            compile_assertion(arg)
+          else
+            make_unit(arg, points)
+          end
+        end
+        transform = TestML::Transform.new(token[0], args, true)
+        side.units << transform
       else
-        side = [side] if side.size >= 2
-        side.unshift token
+        XXX expr, token
       end
+
     end
     right = side if right
     return left unless right
-    left = left.first if left.size == 1
-    right = right.first if right.size == 1
-    return [op, left, right]
+    left = left.units.first if left.units.size == 1
+    right = right.units.first if right.units.size == 1
+    statement = TestML::Statement.new(left, assertion, points.uniq)
+    return statement
   end
 
-  def get_token expr
+  def make_unit token, points
+    case token
+    when POINT
+      name = $1
+      points << name
+      return TestML::Point.new(name)
+    when String
+      return TestML::Str.new(token)
+    else
+      fail token.inspect
+    end
+  end
+
+
+
+  def get_token! expr
     if expr.sub! /^(\w+)\(([^\)]+)\)\.?/, ''
       token, args = [$1], $2
       token.concat(
-        args.split(/,\s*/).map {|t| t.sub /^(['"])(.*)\1$/, '\2'}
+        args.split(/,\s*/).map{|t|t.sub /^(['"])(.*)\1$/, '\2'}
       )
     elsif expr.sub! /^\s*(==|~~)\s*/, ''
       token = $1
     elsif expr.sub! /^(['"])(.*?)\1/, ''
       token = ['String', $2]
-    elsif expr.sub! /^(\d+)\1/, ''
+    elsif expr.sub! /^(\d+)/, ''
       token = ['Number', $2]
-    elsif expr.sub! /^([\*\w]+)\.?/, ''
+    elsif expr.sub! /^(\*\w+)\.?/, ''
       token = $1
+    elsif expr.sub! /^(\w+)/, ''
+      token = [$1]
     else
       fail "Can't get token from '#{expr}'"
     end

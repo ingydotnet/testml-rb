@@ -26,31 +26,29 @@ class TestML::Runtime::Unit < TestML::Runtime
 
   attr_accessor :testcase
 
-  def EQ got, want
-    @count += 1
-    @testcase.assert_equal want, got, get_label
-                # TODO Move this logic to testml/diff
-                if got != want
-                  if respond_to? 'on_fail'
-                    on_fail
-                  elsif want.match /\n/
-                    File.open('/tmp/got', 'w') {|f| f.write got}
-                    File.open('/tmp/want', 'w') {|f| f.write want}
-                    puts `diff -u /tmp/want /tmp/got`
-                  end
-                end
+  def assert_EQ got, want
+    @testcase.assert_equal want.value, got.value, get_label
+    # TODO Move this logic to testml/diff
+    if got != want
+      if respond_to? 'on_fail'
+        on_fail
+      elsif want.value.match /\n/
+        File.open('/tmp/got', 'w') {|f| f.write got.value}
+        File.open('/tmp/want', 'w') {|f| f.write want.value}
+        puts `diff -u /tmp/want /tmp/got`
+      end
+    end
   end
 
-  def HAS got, want
-    @count += 1
+  def assert_HAS got, want
     @testcase.assert_match want, got, get_label
   end
 
   # TODO Support OK
-  def OK got
-    @count += 1
+  def assert_OK got
     fail 'TODO'
   end
+
 end
 
 # This is the class that Test::Unit will use to run actual tests.  Every time

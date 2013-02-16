@@ -37,6 +37,7 @@ class TestML
   attr_accessor :compiler_class  # combine with compiler (ie create compiler)
   attr_accessor :runtime_class   # combine with runtime
 
+  attr_accessor :testml
   attr_accessor :runtime
   attr_accessor :bridge
   attr_accessor :library
@@ -48,7 +49,6 @@ class TestML
     @compiler_class ||= TestML::Compiler
     @runtime_class = TestML::Runtime::Unit
     @bridge = TestML::Bridge.new
-    @library = TestML::Library::Standard.new
     # TODO assertions and data should be nil by default
     @assertions = []
     @data = []
@@ -67,6 +67,7 @@ class TestML
     # later on.
     @runtime_class.register self, @name
     @runtime = @runtime_class.new self
+    @library = TestML::Library::Standard.new @runtime
   end
 
   def bridge= bridge
@@ -84,8 +85,7 @@ class TestML
       end
       testml = File.read testml
     end
-    @compiler ||= @compiler_class.new
-    @function = @compiler.compile testml
+    @testml = testml
   end
 
   # Finalize the TestML object and run it.

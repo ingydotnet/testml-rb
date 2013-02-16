@@ -1,6 +1,14 @@
 class TestML::Library::Standard
   attr_accessor :runtime
 
+  def initialize(runtime)
+    @runtime = runtime
+  end
+
+  def Get(key)
+    return @runtime.function.getvar(key)
+  end
+
   def Throw msg
     @runtime.error = msg
   end
