@@ -1,5 +1,4 @@
 ##
-#return context
 # The Runtime object is responsible for running the TestML code and applying it
 # to the Ruby test framework (default is Test::Unit).
 
