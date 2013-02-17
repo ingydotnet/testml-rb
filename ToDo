@@ -1,14 +1,14 @@
+- Code review
+- rake testml takes yaml file argument
+
+
 + Check irc
 + Turn testml-lite into testml
 + Eliminate explicit.rb and plan.rb
 + Combine testml.tml and testml-lite.tml
 - Port TestML::Runtime(.pm) to ruby
   - Make test pass using real testml runtime
-  - Use a peglite style compiler
-
 - Make all tests pass
-- Code Review
-  - Think on standard lib
 
 
 
