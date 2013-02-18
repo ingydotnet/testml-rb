@@ -1,39 +1,56 @@
 require 'rake'
+require 'pathname'
 
 TESTML_CONF = './test/testml.yaml'
 
+# Usage:
+#   rake testml
+#   rake testml ./test/mytestmlconf.yaml
+#
+# This rake task syncs your local testml setup with a testml repository and
+# creates any needed shim test files.
 desc 'Update TestML files.'
 task :testml do
-  fail "TestML conf file '#{TESTML_CONF}' not found" \
-    unless File.exists? TESTML_CONF
-  dir = File.dirname TESTML_CONF
+  testml_conf =
+    ARGV.size == 2 ? ARGV[1] :
+    ARGV.size == 1 ? TESTML_CONF :
+    fail("Usage: rake testml [testml-conf-yaml-file]")
+  fail "TestML conf file '#{testml_conf}' not found" \
+    unless File.exists? testml_conf
+  # File paths are relative to the yaml file location
+  base = File.dirname testml_conf
   fail "TestML conf file must be .yaml" \
-    unless TESTML_CONF.match /\.ya?ml$/
+    unless testml_conf.match /\.ya?ml$/
   require 'yaml'
-  conf = YAML.load File.read TESTML_CONF
-  source = conf['source'] \
-    or fail "`rake testml` requires 'source' key in #{TESTML_CONF}"
-  target = conf['target'] \
-    or fail "`rake testml` requires 'target' key in #{TESTML_CONF}"
-  source = File.expand_path source, dir
-  target = File.expand_path target, dir
+  conf = YAML.load File.read testml_conf
+  source = conf['source_testml_dir'] \
+    or fail "`rake testml` requires 'source_testml_dir' key in #{testml_conf}"
+  target = conf['local_testml_dir'] \
+    or fail "`rake testml` requires 'local_testml_dir' key in #{testml_conf}"
+  tests = conf['test_file_dir'] || '.'
+  source = File.expand_path source, base
+  target = File.expand_path target, base
+  tests = File.expand_path tests, base
   Dir.exists? source \
-    or fail "'#{conf.source}' directory does not exist"
+    or fail "'#{source}' directory does not exist"
   Dir.exists? target or mkdir target
-  template = conf['template']
-  skip = conf['skip'] || []
-  Dir.new(source).grep(/\.tml$/).each do |file|
+  Dir.exists? tests or mkdir tests
+  template = conf['test_file_template']
+  skip = conf['exclude_testml_files'] || []
+  files = conf['include_testml_files'] ||
+    Dir.new(source).grep(/\.tml$/)
+  files.each do |file|
     next if skip.include? file
     s = "#{source}/#{file}"
     t = "#{target}/#{file}"
-    if (! File.exists?(t) or File.read(s) != File.read(t))
+    if ! uptodate?(t, [s])
       cp rel(s), rel(t)
     end
     if template
       test = file.sub /\.tml$/, '.rb'
-      test = File.expand_path test, dir
+      test = File.expand_path test, tests
       hash = {
-        file: rel(t, dir),
+        file: rel(t, base),
       }
       code = template % hash
       if ! File.exists?(test) or code != File.read(test)
@@ -45,9 +62,7 @@ task :testml do
   end
 end
 
-def rel path, base=nil
-  require 'pathname'
-  base ||= '.'
+def rel path, base='.'
   base = Pathname.new(File.absolute_path(base))
   Pathname.new(path).relative_path_from(base).to_s
 end

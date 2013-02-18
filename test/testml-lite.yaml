@@ -4,14 +4,12 @@ test_file_template: |
   require 'testml'
   require 'testml_bridge'
 
-  TestML.new(
-    testml: '%{file}',
+  TestML::Lite.new(
+    testml: '../%{file}',
     bridge: TestMLBridge,
   )
-exclude_testml_files:
-- comments.tml
-- data.tml
-- external1.tml
-- external2.tml
-- syntax.tml
-- topic.tml
+test_file_dir: lite
+include_testml_files:
+- arguments.tml
+- basic.tml
+- semicolons.tml

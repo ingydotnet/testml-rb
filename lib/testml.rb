@@ -117,16 +117,19 @@ class TestML
     end
   end
 
+  TestFilePattern = 'test\\/((?:.*\\/)?[-\\w+]+)\\.rb'
+
   # Find the first call-stack entry that looks like: .../test/xxx-yyy.rb
   def self.get_testfile
     caller.map {|s| s.split(':').first} \
-      .grep(/(^|\/)test\/[-\w]+\.rb$/).first
+      .grep(/(^|\/)#{TestFilePattern}$/).first \
+      or fail caller.join("\n")
   end
 
   # Return something like 'test_xxx_yyy' as the test name.
   def self.get_testname
     name = TestML.get_testfile or return nil
-    name.gsub!(/^(?:.*\/)?test\/([-\w+]+)\.rb$/, '\1') \
+    name.gsub!(/^(?:.*\/)?#{TestFilePattern}$/, '\1') \
       .gsub!(/[^\w]+/, '_')
     return "test_#{name}"
   end
