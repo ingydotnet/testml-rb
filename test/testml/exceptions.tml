@@ -2,12 +2,12 @@
 
 Plan = 3
 
-*testml_stream.compile_testml().Catch().msg() ~~ *error
+*testml_stream.compile_testml.Catch ~~ *error
 
 === No TestML directive
 --- testml_stream
 # A comment
-*foo == *bar
+*foo == *bar == !@#
 --- error: No TestML directive found
 --- line: 2
 

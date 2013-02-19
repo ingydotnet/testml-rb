@@ -13,6 +13,10 @@ class TestMLBridge < TestML::Bridge
     args.flatten.map(&:value).join(' ')
   end
 
+  def compile_testml(testml)
+    @runtime.compiler_class.new.compile(testml.value)
+  end
+
   def json_load json
     require 'json'
     JSON.load json

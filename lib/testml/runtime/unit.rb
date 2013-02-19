@@ -43,7 +43,7 @@ class TestML::Runtime::Unit < TestML::Runtime
   end
 
   def assert_HAS got, want
-    @testcase.assert_match want, got, get_label
+    @testcase.assert_match want.value, got.value, get_label
   end
 
   # TODO Support OK

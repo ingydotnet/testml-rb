@@ -18,6 +18,6 @@ class TestML::Library::Standard
     fail "Catch called, but no error occurred" unless @runtime.error
     error = @runtime.error
     @runtime.error = nil
-    return error.respond_to?('message') ? error.message : error
+    return error
   end
 end

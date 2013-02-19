@@ -12,4 +12,5 @@ test_file_dir: lite
 include_testml_files:
 - arguments.tml
 - basic.tml
+- exceptions.tml
 - semicolons.tml

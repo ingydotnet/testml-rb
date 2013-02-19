@@ -67,7 +67,7 @@ class TestML
     # later on.
     @runtime_class.register self, @name
     @runtime = @runtime_class.new self
-    @library = TestML::Library::Standard.new @runtime
+    @library = @runtime.library = TestML::Library::Standard.new @runtime
   end
 
   def bridge= bridge

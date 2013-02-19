@@ -3,7 +3,9 @@
 # to the Ruby test framework (default is Test::Unit).
 
 class TestML::Runtime
-
+  attr_accessor :compiler_class
+  attr_accessor :library
+  attr_accessor :error
 # # TODO TestML should require the compiler and create the runtime object with it
 # use TestML::Compiler;
 
@@ -54,7 +56,6 @@ class TestML::Runtime
 
   end
 
-end
 # # XXX Move to TestML::Adapter
   def title; end
   def plan_begin; end
@@ -146,8 +147,12 @@ end
     context = nil
 
     units.each do |unit|
-      if expression.error
+      if @error
         next unless unit.kind_of?(TestML::Transform) && unit.name == 'Catch'
+        context =
+            try_call(@library, unit, [@error], nil) ||
+            fail("Can't find TestML method #{unit.name}")
+        next
       end
       if unit.kind_of?(TestML::Object) || unit.kind_of?(TestML::Function)
         context = unit
@@ -199,9 +204,13 @@ end
   end
 
   def try_call(transformer, unit, args, context)
-    callable = transformer.method(unit.name.to_sym) or return
+    callable = transformer.method(unit.name.to_sym) rescue return
     args.unshift context if context
-    context = callable.call(*args)
+    begin
+      context = callable.call(*args)
+    rescue
+      @error = TestML::Str.new($!.message)
+    end
     if context.kind_of?(String)
       context = TestML::Str.new(context)
     end
@@ -360,7 +369,6 @@ end
       @planned = true
     end
   end
-
 # sub get_error {
 #     my $self = shift;
 #     return $self->function->expression->error;
@@ -375,6 +383,7 @@ end
 #     require Carp;
 #     Carp::croak $_[1];
 # }
+end
 
 # 
 # TestML Function object class
