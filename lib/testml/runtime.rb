@@ -467,7 +467,7 @@ end
 class TestML::Object
   attr_accessor :value
 
-  def initialize value
+  def initialize(value)
     @value = value
   end
 
@@ -486,15 +486,18 @@ class TestML::Object
   def none
     TestML::Constant::None
   end
-
 end
 
-class TestML::Num < TestML::Object
-
+class TestML::List < TestML::Object
 end
 
 class TestML::Str < TestML::Object
+end
 
+class TestML::Num < TestML::Object
+end
+
+class TestML::Bool < TestML::Object
 end
 
 class TestML::None < TestML::Object
@@ -508,5 +511,17 @@ class TestML::None < TestML::Object
 
   def list
     TestML::List.new []
+  end
+end
+
+module TestML::Util
+  def str(value)
+    TestML::Str.new(value)
+  end
+  def num(value)
+    TestML::Num.new(value)
+  end
+  def bool(value)
+    TestML::Bool.new(value)
   end
 end
