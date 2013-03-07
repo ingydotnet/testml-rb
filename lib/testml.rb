@@ -8,15 +8,16 @@ class TestML
   attr_accessor :testml
 
   def initialize attributes={}
-    attributes.each { |k,v| self.send "#{k}=", v }
-
-    @runtime = TestML::Runtime::Unit
-    @compiler = TestML::Compiler
-    @bridge = TestML::Bridge.new
-    @library = [
-      TestML::Library::Standard,
-      TestML::Library::Debug,
-    ]
+    defaults = {
+      'runtime' => TestML::Runtime::Unit,
+      'compiler' => TestML::Compiler,
+      'bridge' => TestML::Bridge,
+      'library' => [
+        TestML::Library::Standard,
+        TestML::Library::Debug,
+      ],
+    }
+    defaults.merge(attributes).each { |k,v| self.send "#{k}=", v }
 
     @runtime.register self
   end
