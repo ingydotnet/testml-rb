@@ -1,16 +1,19 @@
 require './lib/testml'
+require './lib/testml/bridge'
+require './lib/testml/util'
+include TestML::Util
 
 class TestMLBridge < TestML::Bridge
   def uppercase string
-    string.value.upcase
+    str string.value.upcase
   end
 
   def lowercase string
-    string.value.downcase
+    str string.value.downcase
   end
 
   def combine *args
-    args.flatten.map(&:value).join(' ')
+    str args.flatten.map(&:value).join(' ')
   end
 
   def compile_testml(testml)

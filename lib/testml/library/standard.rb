@@ -1,10 +1,6 @@
-class TestML::Library::Standard
-  attr_accessor :runtime
+require 'testml/library'
 
-  def initialize(runtime)
-    @runtime = runtime
-  end
-
+class TestML::Library::Standard < TestML::Library
   def Get(key)
     return @runtime.function.getvar(key)
   end

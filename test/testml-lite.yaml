@@ -1,12 +1,17 @@
 source_testml_dir: ../../testml-tml
 local_testml_dir: ./testml
 test_file_template: |
+  $:.unshift "#{Dir.getwd}/lib"
+  $:.unshift "#{Dir.getwd}/test/lib"
+
   require 'testml'
+  require 'testml/compiler/lite'
   require 'testml_bridge'
 
-  TestML::Lite.new(
+  TestML.new(
     testml: '../%{file}',
     bridge: TestMLBridge,
+    compiler: TestML::Compiler::Lite,
   )
 test_file_dir: lite
 include_testml_files:

@@ -2,7 +2,8 @@
 # This is the Lite version of the TestML compiler. It can parse simple
 # statements and assertions and also parse the TestML data format.
 
-class TestML::Lite::Compiler
+class TestML::Compiler;end
+class TestML::Compiler::Lite
   attr_accessor :function
   # TODO put plan into Plan var in @function
   attr_accessor :plan
@@ -42,6 +43,7 @@ class TestML::Lite::Compiler
     unless lines.empty?
       @function.data = compile_data lines.push('').join $/
     end
+    @function.outer = TestML::Function.new
     return @function
   end
 
@@ -53,7 +55,7 @@ class TestML::Lite::Compiler
       token = get_token! expr
       case token
       when POINT
-        side.units << make_unit(token, points)
+        side.calls << make_call(token, points)
       when /^(==|~~)$/
         name = token == '==' ? 'EQ' : 'HAS'
         left = side
@@ -64,13 +66,13 @@ class TestML::Lite::Compiler
           if arg =~ /\./
             compile_assertion(arg)
           else
-            make_unit(arg, points)
+            make_call(arg, points)
           end
         end
-        transform = TestML::Transform.new(token[0], args, true)
-        side.units << transform
+        call = TestML::Call.new(token[0], args, true)
+        side.calls << call
       when TestML::Object
-        side.units << token
+        side.calls << token
       else
         XXX expr, token
       end
@@ -78,13 +80,13 @@ class TestML::Lite::Compiler
     end
     right = side if right
     return left unless right
-    left = left.units.first if left.units.size == 1
-    right = right.units.first if right.units.size == 1
+    left = left.calls.first if left.calls.size == 1
+    right = right.calls.first if right.calls.size == 1
     statement = TestML::Statement.new(left, assertion, points.uniq)
     return statement
   end
 
-  def make_unit token, points
+  def make_call token, points
     case token
     when POINT
       name = $1

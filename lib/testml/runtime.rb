@@ -1,93 +1,37 @@
-##
-# The Runtime object is responsible for running the TestML code and applying it
-# to the Ruby test framework (default is Test::Unit).
-
 class TestML::Runtime
-  attr_accessor :compiler_class
+  attr_accessor :testml
+  attr_accessor :bridge
   attr_accessor :library
-  attr_accessor :error
-# # TODO TestML should require the compiler and create the runtime object with it
-# use TestML::Compiler;
+  attr_accessor :compiler
+  attr_accessor :base
+  attr_accessor :skip
 
-# # Since there is only ever one test runtime, it makes things a LOT cleaner to
-# # keep the reference to it in a global variable accessed by a method, than to
-# # put a reference to it into every object that needs to access it.
-# our $self;
+  attr_accessor :function
 
-# has base => default => sub {$0 =~ m!(.*)/! ? $1 : "."};   # Base directory
-# has testml => ();       # TestML document filename, handle or text
-# has bridge => ();       # Bridge transform module
-
-# # XXX Add TestML.pm support for -library keyword.
-# has library => default => sub {[]};    # Transform library modules
-
-# has function => ();         # Current function executing
-# has planned => default => sub {0};     # plan() has been called
-# has test_number => default => sub {0}; # Number of tests run so far
-
-# sub BUILD {
-#     my $self = $TestML::Runtime::self = shift;
-#     $self->function($self->compile_testml);
-#     $self->load_variables;
-#     $self->load_transform_module('TestML::Library::Standard');
-#     $self->load_transform_module('TestML::Library::Debug');
-#     if ($self->bridge) {
-#         $self->load_transform_module($self->bridge);
-#     }
-# }
-  def initialize(test)
-    @testml = test.testml
-    @bridge = test.bridge
-    @compiler_class = test.compiler_class
-    @library = test.library
-    @test_number = 0
-    @planned = false
+  def initialize attributes={}
+    attributes.each { |k,v| self.send "#{k}=", v }
+    $TestMLRuntimeSingleton = self
+    @base = 'test/lite'
   end
 
   def run
-    @function = compile_testml
+    compile_testml
+    initialize_runtime
 
-    context = TestML::None.new 
-    args = []
-
-    run_function(@function, context, args)
-#     $self->run_plan();
-#     $self->plan_end();
-
+    run_function(
+      @function,
+      nil,
+      [],
+    )
   end
 
-# # XXX Move to TestML::Adapter
-  def title; end
-  def plan_begin; end
-  def plan_end; end
-
-
-# # XXX - TestML exception handling needs to happen at the function level, not
-# # just at the expression level. Not yet handled here.
-# sub run_function {
   def run_function(function, context, args)
     signature = function.signature
-#     die sprintf(
-#         "Function received %d args but expected %d",
-#         scalar(@$args),
-#         scalar(@$signature),
-#     ) if @$signature and @$args != @$signature;
     function.setvar('Self', context)
-#     for (my $i = 0; $i < @$signature; $i++) {
-#         my $arg = $args->[$i];
-#         $arg = $self->run_expression($arg)
-#             if ref($arg) eq 'TestML::Expression';
-#         $function->setvar($signature->[$i], $arg);
-#     }
-
-#     my $parent = $self->function;
-#     $self->function($function);
 
     function.statements.each do |statement|
       run_statement(statement)
     end
-
-#     $self->function($parent);
 
     return TestML::None.new
   end
@@ -104,150 +48,122 @@ class TestML::Runtime
   end
 
   def run_assertion left, assertion
-    meth = method("assert_#{assertion.name}".to_sym)
+    method_ = method("assert_#{assertion.name}".to_sym)
 
-    run_plan
+    @function.getvar('TestNumber').value += 1
 
-    @test_number += 1
-
-    @function.setvar('TestNumber', TestML::Num.new(@test_number))
-
-
-#     # TODO - Should check 
-#     my $results = ($left->type eq 'List')
-#         ? $left->value
-#         : [ $left ];
     results = [left]
     results.each do |result|
-      if !assertion.expression.units.empty?
+      if !assertion.expression.calls.empty?
         right = run_expression(assertion.expression)
-#             my $matches = ($right->type eq 'List')
-#                 ? $right->value
-#                 : [ $right ];
         matches = [right]
         matches.each do |match|
-          meth.call(result, match)
+          method_.call(result, match)
         end
       else
-        meth.call(result)
+        method_.call(result)
       end
     end
   end
 
   def run_expression expression
-    if expression.kind_of? TestML::Point
-      return get_point(expression)
-    elsif expression.kind_of? TestML::Object
-      return expression
-    elsif expression.kind_of? TestML::Transform
-      return try_call(@library, expression, expression.args, nil)
-    end
+    prev_expression = @function.expression
+    @function.expression = expression
 
-    units = expression.units
     context = nil
 
-    units.each do |unit|
-      if @error
-        next unless unit.kind_of?(TestML::Transform) && unit.name == 'Catch'
-        context =
-            try_call(@library, unit, [@error], nil) ||
-            fail("Can't find TestML method #{unit.name}")
+    expression.calls.each do |call|
+      if expression.error
+        next unless
+            call.kind_of?(TestML::Call) &&
+            call.name == 'Catch'
+      end
+      if call.kind_of? TestML::Point
+        context = get_point(call.name)
         next
       end
-      if unit.kind_of?(TestML::Object) || unit.kind_of?(TestML::Function)
-        context = unit
+      if call.kind_of? TestML::Object
+        context = call
         next
       end
-
-
-      case unit
-      when TestML::Transform
-
-        args = unit.args.collect{|arg| run_expression(arg)}
-
-        if callable = @function.getvar(unit.name)
-          context = case callable
-          when TestML::Native
-            run_native(callable.value, context, args)
-          when TestML::Object
-            callable
-          when TestML::Function
-            fail "Function not supported yet"
-#         elsif ($callable->isa('TestML::Function')) {
-#             if ($i or $unit->explicit_call) {
-#                 my $points = $self->function->getvar('Block')->points;
-#                 for my $key (keys %$points) {
-#                     $callable->setvar($key, TestML::Str->new(value => $points->{$key}));
-#                 }
-#                 $context = $self->run_function($callable, $context, $args);
-#             }
-#             $context = $callable;
-#         }
-          when TestML::Point
-            get_point(callable)
-          else
-            fail "Unexpected callable"
-          end
-        else
-          context =
-            try_call(@bridge, unit, args, context) ||
-            try_call(@library, unit, args, context) ||
-            fail("Can't find TestML method #{unit.name}")
+      if call.kind_of? TestML::Function
+        context = call
+        next
+      end
+      if call.kind_of? TestML::Call
+        name = call.name
+        callable = @function.getvar(name) ||
+          lookup_callable(name) \
+            or fail "Can't locate '#{name}' callable"
+        args = call.args.map do |arg|
+          arg.kind_of?(TestML::Point) ? get_point(arg.name) : arg
         end
-      when TestML::Point
-        context = get_point(unit)
+        if callable.kind_of?(TestML::Native)
+          context = run_native(callable, context, args)
+        elsif callable.kind_of?(TestML::Object)
+          context = callable
+        elsif callable.kind_of?(TestML::Function)
+          fail 'TODO'
+        else
+          fail 'TODO'
+        end
       else
-        fail("Unexpected unit: #{unit}")
+        fail "Unexpected call: #{call}"
+      end
+      if call.kind_of?(TestML::Object) || call.kind_of?(TestML::Function)
+        context = call
+        next
       end
     end
+    if expression.error
+      fail expression.error
+    end
+    function.expression = prev_expression
     return context
   end
 
-  def try_call(transformer, unit, args, context)
-    callable = transformer.method(unit.name.to_sym) rescue return
-    args.unshift context if context
-    begin
-      context = callable.call(*args)
-    rescue
-      @error = TestML::Str.new($!.message)
+  def lookup_callable(name)
+    @function.getvar('Library').value.each do |library|
+      if library.respond_to?(name)
+        function = lambda do |*args|
+          library.method(name).call(*args)
+        end
+        callable = TestML::Native.new(function)
+        @function.setvar(name, callable)
+        return callable
+      end
     end
-    if context.kind_of?(String)
-      context = TestML::Str.new(context)
-    end
-    return context
+    return nil
   end
 
-  def get_point(point)
-    TestML::Str.new(@function.getvar('Block')[:points][point.name])
+  def get_point(name)
+    value = @function.getvar('Block')[:points][name]
+    if value.match /\n+\z/
+      value.replace! /\n+\z/, "\n"
+      value = '' if value == "\n"
+    end
+    TestML::Str.new(value)
   end
 
-# sub run_native {
-#     my $self = shift;
-#     my $function = shift;
-#     my $context = shift;
-#     my $args = shift;
-#     my $value = eval {
-#         &$function(
-#             $context,
-#             map {
-#                 (ref($_) eq 'TestML::Expression')
-#                 ? $self->run_expression($_)
-#                 : $_
-#             } @$args
-#         );
-#     };
-#     if ($@) {
-#         $self->function->expression->error($@);
-#         $context = TestML::Error->new(value => $@);
-#     }
-#     elsif (UNIVERSAL::isa($value, 'TestML::Object')) {
-#         $context = $value;
-#     }
-#     else {
-#         $context = $self->object_from_native($value);
-#     }
-#     return $context;
-# }
+  def run_native(native, context, args)
+    function = native.value
+    args = (args.map do |arg|
+      arg.kind_of?(TestML::Expression) ? run_expression(arg) : arg
+    end)
+    args.unshift(context) if context
+#     begin
+      value = function.call(*args)
+#     rescue Exception => e
+#       XXX e
+#       error @function.expression.error = e.message
+#       return TestML::Error.new(error)
+#     end
+    if value.kind_of?(TestML::Object)
+      return value
+    else
+      return object_from_native(value)
+    end
+  end
 
   def select_blocks(wanted)
     selected = []
@@ -264,103 +180,79 @@ class TestML::Runtime
     end
     return selected
   end
-#     OUTER: for my $block (@{$self->function->data}) {
-#         my %points = %{$block->points};
-#         next if exists $points{SKIP};
-#         for my $point (@$wanted) {
-#             next OUTER unless exists $points{$point};
-#         }
-#         if (exists $points{ONLY}) {
-#             @$selected = ($block);
-#             last;
-#         }
-#         push @$selected, $block;
-#         last if exists $points{LAST};
-#     }
-#     return $selected;
-# }
 
-# sub object_from_native {
-#     my $self = shift;
-#     my $value = shift;
-#     return
-#         not(defined $value) ? TestML::None->new :
-#         ref($value) eq 'ARRAY' ? TestML::List->new(value => $value) :
-#         $value =~ /^-?\d+$/ ? TestML::Num->new(value => $value + 0) :
-#         "$value" eq "$TestML::Constant::True" ? $value :
-#         "$value" eq "$TestML::Constant::False" ? $value :
-#         "$value" eq "$TestML::Constant::None" ? $value :
-#         TestML::Str->new(value => $value);
-# }
-
-  def compile_testml
-    @compiler_class.new.compile(@testml)
-#     my $self = shift;
-#     my $path = ref($self->testml)
-#         ? $self->testml
-#         : join '/', $self->base, $self->testml;
-#     my $function = TestML::Compiler->new(base => $self->base)->compile($path)
-#         or die "TestML document failed to compile";
-#     return $function;
-# }
+  def object_from_native(value)
+    return
+        value.is_nil? ? TestML::None.new :
+        value.kind_of?(Array) ? TestML::List.new(value) :
+        value.match(/^-?\d+$/) ? TestML::Num.new(value.to_i) :
+        value == TestML::Constant::True ? value :
+        value == TestML::Constant::False ? value :
+        value == TestML::Constant::None ? value :
+        TestML::Str.new(value)
   end
 
-# sub load_variables {
-#     my $self = shift;
-#     my $global = $self->function->outer;
-#     $global->setvar(Block => TestML::Block->new);
-#     $global->setvar(Label => TestML::Str->new(value => '$BlockLabel'));
-#     $global->setvar(True => $TestML::Constant::True);
-#     $global->setvar(False => $TestML::Constant::False);
-#     $global->setvar(None => $TestML::Constant::None);
-# }
+  def compile_testml
+    fail "'testml' document required but not found" \
+      unless @testml
+    if not @testml.match /\n/
+      m = @testml.match(/(.*)\/(.*)/) or fail
+      testml = m[2]
+      @base = @base + '/' + m[1]
+      @testml = read_testml_file testml
+    end
+    # require_class_library(@compiler)
+    @function = @compiler.new.compile(@testml)
+  end
 
-# sub load_transform_module {
-#     my $self = shift;
-#     my $module_name = shift;
-#     if ($module_name ne 'main') {
-#         eval "require $module_name; 1"
-#             or die "Can't use $module_name:\n$@";
-#     }
+  def initialize_runtime
+    global = @function.outer
 
-#     my $global = $self->function->outer;
-#     no strict 'refs';
-#     for my $key (sort keys %{"$module_name\::"}) {
-#         next if $key eq "\x16";
-#         my $glob = ${"$module_name\::"}{$key};
-#         if (my $function = *$glob{CODE}) {
-#             $global->setvar(
-#                 $key => TestML::Native->new(value => $function),
-#             );
-#         }
-#         elsif (my $object = *$glob{SCALAR}) {
-#             if (ref($$object)) {
-#                 $global->setvar($key => $$object);
-#             }
-#         }
-#     }
-# }
+    # Set global variables.
+    global.setvar('Block', TestML::Block.new)
+    global.setvar('Label', TestML::Str.new('$BlockLabel'))
+    global.setvar('True', TestML::Constant::True)
+    global.setvar('False', TestML::Constant::False)
+    global.setvar('None', TestML::Constant::None)
+    global.setvar('TestNumber', TestML::Num.new(0))
+    global.setvar('Library', TestML::List.new)
+
+    [@bridge, @library].each do |lib|
+      if lib.kind_of? Array
+        lib.each {|l| add_library(l)}
+      else
+        add_library(lib)
+      end
+    end
+  end
+
+  def add_library library
+    if (not library.respond_to? :new)
+      fail
+      #eval "require $library";
+    end
+    @function.getvar('Library').push(library.new);
+  end
 
   def get_label
     return 'foo'
-#     my $label = $self->function->getvar('Label')->value;
-#     sub label {
-#         my $self = shift;
-#         my $var = shift;
-#         my $block = $self->function->getvar('Block');
-#         return $block->label if $var eq 'BlockLabel';
-#         if (my $v = $block->points->{$var}) {
-#             $v =~ s/\n.*//s;
-#             $v =~ s/^\s*(.*?)\s*$/$1/;
-#             return $v;
-#         }
-#         if (my $v = $self->function->getvar($var)) {
-#             return $v->value;
-#         }
-#     }
-#     $label =~ s/\$(\w+)/label($self, $1)/ge;
-#     return $label ? ($label) : ();
+    label = @function.getvar('Label').value
+    def label(var)
+      block = @function.getvar('Block')
+      return block.label if var == 'BlockLabel'
+      if v = block.points[var]
+          v.replace!(/\n.*/m, '')
+          v.strip!
+          return v
+      end
+      if v = function.getvar(var)
+          return v.value
+      end
+    end
+    # label.replace!(/\$(\w+)/g, label($self, $1)
+    return label
   end
+
 
   def run_plan
     if !@planned
@@ -369,23 +261,14 @@ class TestML::Runtime
       @planned = true
     end
   end
-# sub get_error {
-#     my $self = shift;
-#     return $self->function->expression->error;
-# }
 
-# sub clear_error {
-#     my $self = shift;
-#     return $self->function->expression->error(undef);
-# }
+  def read_testml_file file
+    path = @base + '/' + file
+    File.read(path)
+  end
 
-# sub throw {
-#     require Carp;
-#     Carp::croak $_[1];
-# }
 end
 
-# 
 # TestML Function object class
 class TestML::Function
   attr_accessor :expression
@@ -393,6 +276,15 @@ class TestML::Function
   attr_accessor :statements
   attr_accessor :namespace
   attr_accessor :data
+
+  @@outer = {}
+
+  def outer=(value)
+    @@outer[self.object_id] = value
+  end
+  def outer
+    @@outer[self.object_id]
+  end
 
   def initialize
     @signature = []
@@ -402,7 +294,14 @@ class TestML::Function
   end
 
   def getvar name
-    @namespace[name]
+    s = self
+    while s
+      if s.namespace.key? name
+        return s.namespace[name]
+      end
+      s = s.outer
+    end
+    return nil
   end
 
   def setvar name, object
@@ -427,11 +326,11 @@ class TestML::Statement
 end
 
 class TestML::Expression
-  attr_accessor :units
+  attr_accessor :calls
   attr_accessor :error
 
-  def initialize(units=[])
-    @units = units
+  def initialize(calls=[])
+    @calls = calls
   end
 end
 
@@ -445,7 +344,7 @@ class TestML::Assertion
   end
 end
 
-class TestML::Transform
+class TestML::Call
   attr_accessor :name
   attr_accessor :args
 
@@ -453,6 +352,16 @@ class TestML::Transform
     @name = name
     @args = args
     @explicit_call = explicit_call
+  end
+end
+
+class TestML::Block
+  attr_accessor :label
+  attr_accessor :points
+
+  def initialize
+    @label = ''
+    @points = {}
   end
 end
 
@@ -489,6 +398,13 @@ class TestML::Object
 end
 
 class TestML::List < TestML::Object
+  def initialize(value=[])
+    super(value)
+  end
+
+  def push elem
+    @value.push elem
+  end
 end
 
 class TestML::Str < TestML::Object
@@ -514,14 +430,14 @@ class TestML::None < TestML::Object
   end
 end
 
-module TestML::Util
-  def str(value)
-    TestML::Str.new(value)
-  end
-  def num(value)
-    TestML::Num.new(value)
-  end
-  def bool(value)
-    TestML::Bool.new(value)
-  end
+class TestML::Error < TestML::Object
+end
+
+class TestML::Native < TestML::Object
+end
+
+module TestML::Constant
+  True = TestML::Bool.new(value: 1)
+  False = TestML::Bool.new(value: 0)
+  None = TestML::None.new
 end
