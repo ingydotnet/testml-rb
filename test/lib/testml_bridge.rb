@@ -27,6 +27,6 @@ class TestMLBridge < TestML::Bridge
 
   def yaml_dump object
     require 'yaml'
-    YAML.dump(object).sub(/\A---\n/, '')
+    str YAML.dump(object).sub(/\A---\n/, '')
   end
 end

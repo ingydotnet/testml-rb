@@ -1,5 +1,7 @@
 class TestML::Library
-  attr_accessor :runtime
+  def runtime
+    return $TestMLRuntimeSingleton
+  end
 end
 
 

@@ -5,54 +5,69 @@
 class TestML::Compiler;end
 class TestML::Compiler::Lite
   attr_accessor :function
-  # TODO put plan into Plan var in @function
-  attr_accessor :plan
-  attr_accessor :testml_version
 
   POINT = /^\*(\w+)/
 
-  # support assignment statement for any variable
-  def compile document
+  def compile(document)
     @function = TestML::Function.new
-    lines = document.lines.to_a.map &:chomp
-    while not lines.empty?
-      line = lines.shift
-      next unless line.match /\S/
-      next if line.match /^\s*#/
-      if line[0..2] == "==="
-        lines.unshift line
-        break
+    document =~ /\A(.*?)(^===.*)?\z/m or fail;
+    code, data = $1 || '', $2 || ''
+    while ! code.empty?
+      code.sub!(/(.*)\r?\n/, '')
+      line = $1
+      parse_comment(line) ||
+      parse_directive(line) ||
+      parse_assignment(line) ||
+      parse_assertion(line) ||
+        fail("Failed to parse TestML document, here:\n#{line + $/ + code}")
+      if ! data.empty?
+        @function.data = compile_data(data)
       end
-      if line.rstrip.match /^%TestML +(\d+\.\d+\.\d+)$/
-        @testml_version = $1
-      elsif line.strip.match /^(\w+) *= *(.+?);?$/
-        key, value = $1, $2
-        value.sub!(/^(['"])(.*)\1$/, $2)
-        value = value.match(/^\d+$/) \
-          ? TestML::Num.new(value)
-          : TestML::Str.new(value)
-        @function.setvar(key, value)
-      elsif line.strip.match /^.*(?:==|~~).*;?$/
-        @function.statements << compile_assertion(line.sub /;$/, '')
-      else
-        lines.unshift line
-        fail "Failed to parse TestML::Lite document, here:\n" +
-          lines.join($/)
-      end
-    end
-    unless lines.empty?
-      @function.data = compile_data lines.push('').join $/
     end
     @function.outer = TestML::Function.new
     return @function
   end
 
-  def compile_assertion expr
+  def parse_comment(line)
+    line =~ /^\s*(#|$)/ or return
+    return true
+  end
+
+  def parse_directive(line)
+    line =~ /^%TestML +(\d+\.\d+\.\d+)$/ or return
+    @function.setvar('TestML', TestML::Str.new($1))
+    return true
+  end
+
+  def parse_assignment(line)
+    line =~ /^(\w+) *= *(.+?);?$/ or return
+    key, value = $1, $2
+    value.sub!(/^(['"])(.*)\1$/, $2)
+    value = value.match(/^\d+$/) \
+      ? TestML::Num.new(value)
+      : TestML::Str.new(value)
+    @function.statements << TestML::Statement.new(
+      TestML::Expression.new([
+        TestML::Call.new('Set', [
+          key, TestML::Expression.new([ value ]),
+        ]),
+      ])
+    )
+    return true
+  end
+
+  def parse_assertion(line)
+    line =~ /^.*(?:==|~~).*;?$/ or return
+    @function.statements << compile_assertion(line.sub /;$/, '')
+    return true
+  end
+
+  def compile_assertion(expr, points=[])
     left, op, right = TestML::Expression.new, nil, nil
     side = left
-    points = []
-    while expr.length != 0
-      token = get_token! expr
+    assertion = nil
+    while ! expr.empty?
+      token = get_token!(expr)
       case token
       when POINT
         side.calls << make_call(token, points)
@@ -62,12 +77,10 @@ class TestML::Compiler::Lite
         side = right = TestML::Expression.new
         assertion = TestML::Assertion.new(name, right)
       when Array
-        args = token[1..-1].collect do |arg|
-          if arg =~ /\./
-            compile_assertion(arg)
-          else
-            make_call(arg, points)
-          end
+        args = token[1..-1].map do |arg|
+          arg =~ /\./ \
+            ? compile_assertion(arg, points)
+            : make_call(arg, points)
         end
         call = TestML::Call.new(token[0], args, true)
         side.calls << call
@@ -80,9 +93,14 @@ class TestML::Compiler::Lite
     end
     right = side if right
     return left unless right
-    left = left.calls.first if left.calls.size == 1
-    right = right.calls.first if right.calls.size == 1
-    statement = TestML::Statement.new(left, assertion, points.uniq)
+    # left = left.calls.first if left.calls.size == 1
+    # right = right.calls.first if right.calls.size == 1
+    points = points.uniq
+    statement = TestML::Statement.new(
+      left,
+      assertion,
+      (!points.empty? ? points : nil),
+    )
     return statement
   end
 
@@ -95,7 +113,7 @@ class TestML::Compiler::Lite
     when String
       return TestML::Str.new(token)
     else
-      fail token.inspect
+      return token
     end
   end
 
@@ -103,14 +121,17 @@ class TestML::Compiler::Lite
     if expr.sub! /^(\w+)\(([^\)]+)\)\.?/, ''
       token, args = [$1], $2
       token.concat(
-        args.split(/,\s*/).map{|t|t.sub /^(['"])(.*)\1$/, '\2'}
+        args.split(/,\s*/).map do |t|
+          (t =~ /^(\w+)$/) ? TestML::Expression.new([TestML::Call.new($1)]) :
+            (t =~ /^(['"])(.*)\1$/) ? $2 : t
+        end
       )
     elsif expr.sub! /^\s*(==|~~)\s*/, ''
       token = $1
     elsif expr.sub! /^(['"])(.*?)\1/, ''
       token = TestML::Str.new($2)
     elsif expr.sub! /^(\d+)/, ''
-      token = TestML::Num.new($2)
+      token = TestML::Num.new($1)
     elsif expr.sub! /^(\*\w+)\.?/, ''
       token = $1
     elsif expr.sub! /^(\w+)\.?/, ''

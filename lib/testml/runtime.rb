@@ -8,7 +8,7 @@ class TestML::Runtime
 
   attr_accessor :function
 
-  def initialize attributes={}
+  def initialize(attributes={})
     attributes.each { |k,v| self.send "#{k}=", v }
     $TestMLRuntimeSingleton = self
     @base = 'test/lite'
@@ -36,8 +36,21 @@ class TestML::Runtime
     return TestML::None.new
   end
 
-  def run_statement statement
-    blocks = statement.points.empty? ? [1] : select_blocks(statement.points)
+  def apply_signature(function, args)
+    fail "Function received #{args.size} args but expected #{signature.size}" \
+      if ! @signature.enpty? and @args.size != @signature.size
+
+    @function.setvar('Self', @function)
+    @signature.each_with_index do |sig_elem, i|
+      arg = args[i]
+      arg = run_expression(arg) \
+        if arg.kind_of TestML::Expression
+      function.setvar(sig_elem, arg)
+    end
+  end
+
+  def run_statement(statement)
+    blocks = select_blocks(statement.points)
     blocks.each do |block|
       @function.setvar('Block', block) if block != 1
       context = run_expression(statement.expression)
@@ -47,7 +60,7 @@ class TestML::Runtime
     end
   end
 
-  def run_assertion left, assertion
+  def run_assertion(left, assertion)
     method_ = method("assert_#{assertion.name}".to_sym)
 
     @function.getvar('TestNumber').value += 1
@@ -66,7 +79,7 @@ class TestML::Runtime
     end
   end
 
-  def run_expression expression
+  def run_expression(expression)
     prev_expression = @function.expression
     @function.expression = expression
 
@@ -139,7 +152,7 @@ class TestML::Runtime
   def get_point(name)
     value = @function.getvar('Block')[:points][name]
     if value.match /\n+\z/
-      value.replace! /\n+\z/, "\n"
+      value.sub!(/\n+\z/, "\n")
       value = '' if value == "\n"
     end
     TestML::Str.new(value)
@@ -166,6 +179,7 @@ class TestML::Runtime
   end
 
   def select_blocks(wanted)
+    return [1] if wanted.nil? or wanted.empty?
     selected = []
     @function.data.each do |block|
       points = block[:points]
@@ -241,7 +255,7 @@ class TestML::Runtime
       block = @function.getvar('Block')
       return block.label if var == 'BlockLabel'
       if v = block.points[var]
-          v.replace!(/\n.*/m, '')
+          v.sub!(/\n.*/m, '')
           v.strip!
           return v
       end
@@ -249,10 +263,9 @@ class TestML::Runtime
           return v.value
       end
     end
-    # label.replace!(/\$(\w+)/g, label($self, $1)
+    # label.sub!(/\$(\w+)/g, label($self, $1)
     return label
   end
-
 
   def run_plan
     if !@planned
@@ -266,7 +279,6 @@ class TestML::Runtime
     path = @base + '/' + file
     File.read(path)
   end
-
 end
 
 # TestML Function object class
@@ -318,10 +330,10 @@ class TestML::Statement
   attr_accessor :assertion
   attr_accessor :points
 
-  def initialize(expression, assertion=nil, points=[])
+  def initialize(expression, assertion=nil, points=nil)
     @expression = expression
     @assertion = assertion
-    @points = points
+    @points = points if points
   end
 end
 
