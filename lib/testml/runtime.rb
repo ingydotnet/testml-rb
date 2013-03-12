@@ -1,3 +1,5 @@
+class TestML;end
+
 class TestML::Runtime
   attr_accessor :testml
   attr_accessor :bridge
@@ -11,7 +13,7 @@ class TestML::Runtime
   def initialize(attributes={})
     attributes.each { |k,v| self.send "#{k}=", v }
     $TestMLRuntimeSingleton = self
-    @base = 'test/lite'
+    @base ||= 'test/lite' # XXX remove this!
   end
 
   def run
@@ -26,7 +28,7 @@ class TestML::Runtime
   end
 
   def run_function(function, context, args)
-    signature = function.signature
+    signature = function.signature ||= {}
     function.setvar('Self', context)
 
     function.statements.each do |statement|
@@ -299,7 +301,7 @@ class TestML::Function
   end
 
   def initialize
-    @signature = []
+    # @signature = []
     @statements = []
     @namespace = {}
     @data = []
@@ -332,7 +334,7 @@ class TestML::Statement
 
   def initialize(expression, assertion=nil, points=nil)
     @expression = expression
-    @assertion = assertion
+    @assertion = assertion if assertion
     @points = points if points
   end
 end
@@ -362,8 +364,8 @@ class TestML::Call
 
   def initialize(name, args=[], explicit_call=false)
     @name = name
-    @args = args
-    @explicit_call = explicit_call
+    @args = args if !args.empty?
+    @explicit_call = explicit_call if explicit_call
   end
 end
 

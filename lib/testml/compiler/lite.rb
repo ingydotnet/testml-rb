@@ -2,6 +2,8 @@
 # This is the Lite version of the TestML compiler. It can parse simple
 # statements and assertions and also parse the TestML data format.
 
+require 'testml/compiler'
+
 class TestML::Compiler;end
 class TestML::Compiler::Lite
   attr_accessor :function
@@ -82,7 +84,9 @@ class TestML::Compiler::Lite
             ? compile_assertion(arg, points)
             : make_call(arg, points)
         end
-        call = TestML::Call.new(token[0], args, true)
+        call = args.empty? \
+          ? TestML::Call.new(token[0])
+          : TestML::Call.new(token[0], args, true)
         side.calls << call
       when TestML::Object
         side.calls << token
@@ -145,7 +149,7 @@ class TestML::Compiler::Lite
   def compile_data string
     string.gsub! /^#.*\n/, ''
     string.gsub! /^\\/, ''
-    string.gsub! /^\s*\n/, ''
+    # string.gsub! /^\s*\n/, ''
     blocks = string.split /(^===.*?(?=^===|\z))/m
     blocks.reject!{|b| b.empty?}
     blocks.each do |block|
@@ -154,19 +158,20 @@ class TestML::Compiler::Lite
 
     data = []
     blocks.each do |string_block|
-      block = {}
-      string_block.gsub! /^===\ +(.*?)\ *\n/, '' \
+      block = TestML::Block.new
+      string_block.gsub! /\A===\ +(.*?)\ *\n/, '' \
         or fail "No block label! #{string_block}"
-      block[:label] = $1
+      block.label = $1
       while !string_block.empty? do
+        #next if string_block.sub!(/\A\n+/, '')
         if string_block.gsub! /\A---\ +(\w+):\ +(.*)\n/, '' or
            string_block.gsub! /\A---\ +(\w+)\n(.*?)(?=^---|\z)/m, ''
           key, value = $1, $2
         else
           raise "Failed to parse TestML string:\n#{string_block}"
         end
-        block[:points] ||= {}
-        block[:points][key] = value
+        block.points ||= {}
+        block.points[key] = value
 
         if key =~ /^(ONLY|SKIP|LAST)$/
           block[key] = true
