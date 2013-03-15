@@ -2,8 +2,6 @@ require 'test/unit'
 
 require 'testml/runtime'
 require 'testml/compiler/pegex'
-require 'testml/compiler/lite'
-require 'yaml'
 
 class TestCompileTestMLDocument < Test::Unit::TestCase
   def test_compile_testml_document
@@ -39,14 +37,14 @@ Title = "O HAI TEST"
 
     assert_equal statement.expr.calls.size, 2, 'Expression has two calls'
     expr = statement.expr
-    assert expr.calls[0].isa('TestML::Point'), 'First sub is a Point'
+    assert expr.calls[0].kind_of?(TestML::Point), 'First sub is a Point'
     assert_equal expr.calls[0].name, 'input', 'Point name is "input"'
     assert_equal expr.calls[1].name, 'uppercase', 'Second sub is "uppercase"'
 
     assert_equal statement.assert.name, 'EQ', 'Assertion is "EQ"'
 
     expr = statement.assert.expr
-    assert expr.isa('TestML::Point'), 'First sub is a Point'
+    assert expr.kind_of?(TestML::Point), 'First sub is a Point'
     assert_equal expr.name, 'output', 'Point name is "output"'
 
     assert_equal func.data.size, 2, 'Two data blocks'
