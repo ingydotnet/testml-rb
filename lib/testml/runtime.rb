@@ -327,6 +327,16 @@ class TestML::Function
   end
 end
 
+class TestML::Assignment
+  attr_accessor :name
+  attr_accessor :expression
+
+  def initialize(name, expr)
+    @name = name
+    @expr = expr
+  end
+end
+
 class TestML::Statement
   attr_accessor :expression
   attr_accessor :assertion

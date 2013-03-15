@@ -2,183 +2,198 @@
 # This is the Lite version of the TestML compiler. It can parse simple
 # statements and assertions and also parse the TestML data format.
 
-require 'testml/compiler'
+class TestML::Compiler::Lite < TestML::Compiler
+  require 'testml/runtime'
 
-class TestML::Compiler;end
-class TestML::Compiler::Lite
+  attr_accessor :input
+  attr_accessor :points
+  attr_accessor :tokens
   attr_accessor :function
 
-  POINT = /^\*(\w+)/
 
-  def compile(document)
+
+  WS = %r!\s+!
+  ANY = %r!.!
+  STAR = %r!\*!
+  NUM = %r!-?[0-9]+!
+  WORD = %r!\w+!
+  HASH = %r!#!
+  EQ = %r!=!
+  TILDE = %r!~!
+  LP = %r!\(!
+  RP = %r!\)!
+  DOT = %r!\.!
+  COMMA = %r!,!
+  SEMI = %r!!
+  SSTR = %r!'(?:[^']*)'!
+  DSTR = %r!"(?:[^"]*)"!
+  ENDING = %r!(?:#{RP}|#{COMMA}|#{SEMI})!
+
+  POINT = %r!#{STAR}#{WORD}!
+  QSTR = %r!(?:#{SSTR}|#{DSTR})!
+  COMP = %r!(?:#{EQ}#{EQ}|#{TILDE}#{TILDE})!
+  OPER = %r!(?:#{COMP}|#{EQ})!
+  PUNCT = %r!(?:#{LP}|#{RP}|#{DOT}|#{COMMA}|#{SEMI})!
+
+  TOKENS = %r!(?:#{POINT}|#{NUM}|#{WORD}|#{QSTR}|#{PUNCT}|#{OPER})!
+
+
+
+  def compile_code
     @function = TestML::Function.new
-    document =~ /\A(.*?)(^===.*)?\z/m or fail;
-    code, data = $1 || '', $2 || ''
-    while ! code.empty?
-      code.sub!(/(.*)\r?\n/, '')
-      line = $1
-      parse_comment(line) ||
-      parse_directive(line) ||
-      parse_assignment(line) ||
-      parse_assertion(line) ||
-        fail("Failed to parse TestML document, here:\n#{line + $/ + code}")
-      if ! data.empty?
-        @function.data = compile_data(data)
-      end
+    while not @code.empty? do
+      @code.sub! /^(.*)(\r\n|\n|)/, ''
+      @line = $1
+      tokenize
+      next if done
+      parse_assignment ||
+      parse_assertion ||
+      fail_()
     end
-    @function.outer = TestML::Function.new
-    return @function
   end
 
-  def parse_comment(line)
-    line =~ /^\s*(#|$)/ or return
-    return true
-  end
-
-  def parse_directive(line)
-    line =~ /^%TestML +(\d+\.\d+\.\d+)$/ or return
-    @function.setvar('TestML', TestML::Str.new($1))
-    return true
-  end
-
-  def parse_assignment(line)
-    line =~ /^(\w+) *= *(.+?);?$/ or return
-    key, value = $1, $2
-    value.sub!(/^(['"])(.*)\1$/, $2)
-    value = value.match(/^\d+$/) \
-      ? TestML::Num.new(value)
-      : TestML::Str.new(value)
-    @function.statements << TestML::Statement.new(
-      TestML::Expression.new([
-        TestML::Call.new('Set', [
-          key, TestML::Expression.new([ value ]),
-        ]),
-      ])
-    )
-    return true
-  end
-
-  def parse_assertion(line)
-    line =~ /^.*(?:==|~~).*;?$/ or return
-    @function.statements << compile_assertion(line.sub /;$/, '')
-    return true
-  end
-
-  def compile_assertion(expr, points=[])
-    left, op, right = TestML::Expression.new, nil, nil
-    side = left
-    assertion = nil
-    while ! expr.empty?
-      token = get_token!(expr)
-      case token
-      when POINT
-        side.calls << make_call(token, points)
-      when /^(==|~~)$/
-        name = token == '==' ? 'EQ' : 'HAS'
-        left = side
-        side = right = TestML::Expression.new
-        assertion = TestML::Assertion.new(name, right)
-      when Array
-        args = token[1..-1].map do |arg|
-          arg =~ /\./ \
-            ? compile_assertion(arg, points)
-            : make_call(arg, points)
-        end
-        call = args.empty? \
-          ? TestML::Call.new(token[0])
-          : TestML::Call.new(token[0], args, true)
-        side.calls << call
-      when TestML::Object
-        side.calls << token
+  def tokenize
+    @tokens = []
+    while not @line.empty? do
+      next if @line.sub!(/^#{WS}/, '')
+      next if @line.sub!(/^#{HASH}#{ANY}*/, '')
+      if @line.sub!(/^(#{TOKENS})/, '')
+        @tokens.push $1
       else
-        XXX expr, token
+        fail_("Failed to get token here: '#{@line}'")
       end
-
     end
-    right = side if right
-    return left unless right
-    # left = left.calls.first if left.calls.size == 1
-    # right = right.calls.first if right.calls.size == 1
-    points = points.uniq
-    statement = TestML::Statement.new(
+  end
+
+  def parse_assignment
+    return unless peek(2) == '='
+    var, op = pop(2)
+    expr = parse_expression
+    pop if !done and peek == ''
+    fail unless done
+    @function.statements.push TestML::Assignment.new(var, expr)
+    return true
+  end
+
+  def parse_assertion
+    return unless @tokens.grep /^#{COMP}$/
+    @points = []
+    left = parse_expression
+    token = pop
+    op =
+      token == '==' ? 'EQ' :
+      token == '~~' ? 'HAS' :
+      fail_
+    right = parse_expression
+    pop if !done and peek == ''
+    fail_ unless done
+
+    @function.statements.push TestML::Statement.new(
       left,
-      assertion,
-      (!points.empty? ? points : nil),
+      TestML::Assertion.new(
+        op,
+        right,
+      ),
+      points.empty? ? nil : points
     )
-    return statement
+    return true
   end
 
-  def make_call token, points
-    case token
-    when POINT
-      name = $1
-      points << name
-      return TestML::Point.new(name)
-    when String
-      return TestML::Str.new(token)
-    else
-      return token
-    end
-  end
+  def parse_expression
+    calls = []
 
-  def get_token! expr
-    if expr.sub! /^(\w+)\(([^\)]+)\)\.?/, ''
-      token, args = [$1], $2
-      token.concat(
-        args.split(/,\s*/).map do |t|
-          (t =~ /^(\w+)$/) ? TestML::Expression.new([TestML::Call.new($1)]) :
-            (t =~ /^(['"])(.*)\1$/) ? $2 : t
+    while !done and peek !~ /^(#{ENDING}|#{COMP})$/ do
+      token = pop
+      if token =~ /^#{NUM}$/
+        calls.push TestML::Num.new(token)
+      elsif token =~ /^#{QSTR}$/
+        str = token[1, -2]
+        calls.push TestML::Str.new(str)
+      elsif token =~ /^#{WORD}$/
+        call = TestML::Call.new(token)
+        if !done and peek == '('
+          call.args = parse_args
         end
-      )
-    elsif expr.sub! /^\s*(==|~~)\s*/, ''
-      token = $1
-    elsif expr.sub! /^(['"])(.*?)\1/, ''
-      token = TestML::Str.new($2)
-    elsif expr.sub! /^(\d+)/, ''
-      token = TestML::Num.new($1)
-    elsif expr.sub! /^(\*\w+)\.?/, ''
-      token = $1
-    elsif expr.sub! /^(\w+)\.?/, ''
-      token = [$1]
-    else
-      fail "Can't get token from '#{expr}'"
+        calls.push call
+      elsif token =~ /^#{POINT}$/
+        token =~ /(#{WORD})/ or fail
+        points.push $1
+        calls.push TestML::Point.new($1)
+      else
+        fail_("Unknown token '#{token}'")
+      end
+      if !done and peek == '.'
+        pop
+      end
     end
-    return token
+
+    return calls.size == 1 ? calls[0] : TestML::Expression.new(calls)
   end
 
-  def compile_data string
-    string.gsub! /^#.*\n/, ''
-    string.gsub! /^\\/, ''
-    # string.gsub! /^\s*\n/, ''
-    blocks = string.split /(^===.*?(?=^===|\z))/m
-    blocks.reject!{|b| b.empty?}
-    blocks.each do |block|
-      block.gsub! /\n+\z/, "\n"
+  def parse_args
+    pop == '(' or fail
+    args = []
+    while peek != ')' do
+      args.push parse_expression
+      pop if peek == ','
     end
+    pop
+    return args
+  end
+
+  def compile_data
+    input = @data
+    input.gsub! /^#.*\n/, "\n"
+    input.gsub! /^\\/, ''
+    blocks = input.split(/(^===.*?(?=^===|\z))/m).select{|el|!el.empty?}
+    blocks.each{|block| block.sub! /\n+\z/, "\n"}
 
     data = []
-    blocks.each do |string_block|
+    @blocks.each do |string_block|
       block = TestML::Block.new
-      string_block.gsub! /\A===\ +(.*?)\ *\n/, '' \
-        or fail "No block label! #{string_block}"
+      string_block.gsub! /\A===\ +(.*?)\ *\n/, '' or
+        fail "No block label! #{string_block}"
       block.label = $1
       while !string_block.empty? do
-        #next if string_block.sub!(/\A\n+/, '')
-        if string_block.gsub! /\A---\ +(\w+):\ +(.*)\n/, '' or
-           string_block.gsub! /\A---\ +(\w+)\n(.*?)(?=^---|\z)/m, ''
+        next if string_block.sub! /\A\n+/, ''
+        key, value = nil, nil
+        if string_block.gsub!(/\A---\ +(\w+):\ +(.*)\n/, '') or
+            string_block.gsub!(/\A---\ +(\w+)\n(.*?)(?=^---|\z)/m, '')
           key, value = $1, $2
         else
-          raise "Failed to parse TestML string:\n#{string_block}"
+          fail "Failed to parse TestML string:\n#{string_block}"
         end
         block.points ||= {}
-        block.points[key] = value
+        block.points[key] = $value
 
         if key =~ /^(ONLY|SKIP|LAST)$/
           block[key] = true
         end
       end
-      data << block
+      data.push block
     end
-    return data
+    @function.data = data unless data.empty?
   end
+
+  def done
+    tokens.empty?
+  end
+
+  def peek(index=1)
+    fail if index > @tokens.size
+    @tokens[index - 1]
+  end
+
+  def pop(count=1)
+    fail if count > @tokens.size
+    @tokens.slice! 0..(count-1)
+  end
+
+  def fail_(message)
+    text = "Failed to compile TestML document.\n"
+    text << "Reason: #{message}\n" if message
+    text << "\nCode section of failure:\n#{@line}\n#{@code}\n"
+    fail text
+  end
+
 end
