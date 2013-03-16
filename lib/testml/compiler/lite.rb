@@ -104,7 +104,7 @@ class TestML::Compiler::Lite < TestML::Compiler
       if token =~ /^#{NUM}$/
         calls.push TestML::Num.new(token)
       elsif token =~ /^#{QSTR}$/
-        str = token[1, -2]
+        str = token[1..-2]
         calls.push TestML::Str.new(str)
       elsif token =~ /^#{WORD}$/
         call = TestML::Call.new(token)
@@ -161,7 +161,7 @@ class TestML::Compiler::Lite < TestML::Compiler
           fail "Failed to parse TestML string:\n#{string_block}"
         end
         block.points ||= {}
-        block.points[key] = $value
+        block.points[key] = value
 
         if key =~ /^(ONLY|SKIP|LAST)$/
           block[key] = true

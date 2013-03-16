@@ -31,10 +31,17 @@ class TestML::Runtime
     signature = function.signature ||= {}
     function.setvar('Self', context)
 
+    parent = @function
+
     function.statements.each do |statement|
-      run_statement(statement)
+      if statement.kind_of? TestML::Assignment
+        run_assignment(statement)
+      else
+        run_statement(statement)
+      end
     end
 
+    @function = parent
     return TestML::None.new
   end
 
@@ -55,86 +62,88 @@ class TestML::Runtime
     blocks = select_blocks(statement.points)
     blocks.each do |block|
       @function.setvar('Block', block) if block != 1
-      context = run_expression(statement.expression)
-      if assertion = statement.assertion
+
+      context = run_expression(statement.expr)
+      if assertion = statement.assert
         run_assertion(context, assertion)
       end
     end
   end
 
-  def run_assertion(left, assertion)
-    method_ = method("assert_#{assertion.name}".to_sym)
+  def run_assignment(assignment)
+    @function.setvar(
+      assignment.name,
+      run_expression(assignment.expr)
+    ) 
+  end
+
+  def run_assertion left, assert
+    method_ = method(('assert_' + assert.name).to_sym)
 
     @function.getvar('TestNumber').value += 1
 
-    results = [left]
-    results.each do |result|
-      if !assertion.expression.calls.empty?
-        right = run_expression(assertion.expression)
-        matches = [right]
-        matches.each do |match|
-          method_.call(result, match)
-        end
-      else
-        method_.call(result)
-      end
+    if assert.expr
+      method_.call(left, run_expression(assert.expr))
+    else
+      method_.call(left)
     end
   end
 
-  def run_expression(expression)
-    prev_expression = @function.expression
-    @function.expression = expression
-
+  def run_expression(expr)
     context = nil
-
-    expression.calls.each do |call|
-      if expression.error
-        next unless
-            call.kind_of?(TestML::Call) &&
+    @error = nil
+    if expr.kind_of? TestML::Expression
+      calls = expr.calls
+      fail if calls.size <= 1
+      context = run_call(calls.shift, nil)
+      calls.each do |call|
+        if @error
+          next unless
+            call.kind_of?(TestML::Call) and
             call.name == 'Catch'
-      end
-      if call.kind_of? TestML::Point
-        context = get_point(call.name)
-        next
-      end
-      if call.kind_of? TestML::Object
-        context = call
-        next
-      end
-      if call.kind_of? TestML::Function
-        context = call
-        next
-      end
-      if call.kind_of? TestML::Call
-        name = call.name
-        callable = @function.getvar(name) ||
-          lookup_callable(name) \
-            or fail "Can't locate '#{name}' callable"
-        args = call.args.map do |arg|
-          arg.kind_of?(TestML::Point) ? get_point(arg.name) : arg
         end
-        if callable.kind_of?(TestML::Native)
-          context = run_native(callable, context, args)
-        elsif callable.kind_of?(TestML::Object)
-          context = callable
-        elsif callable.kind_of?(TestML::Function)
-          fail 'TODO'
-        else
-          fail 'TODO'
-        end
-      else
-        fail "Unexpected call: #{call}"
+        context = run_call(call, context)
       end
-      if call.kind_of?(TestML::Object) || call.kind_of?(TestML::Function)
-        context = call
-        next
-      end
+    else
+      context = run_call(expr)
     end
-    if expression.error
-      fail expression.error
+    if @error
+      fail @error
     end
-    function.expression = prev_expression
     return context
+  end
+
+  def run_call call, context=nil
+    if call.kind_of? TestML::Object
+      return call
+    end
+    if call.kind_of? TestML::Function
+      return call
+    end
+    if call.kind_of? TestML::Point
+      return get_point(call.name)
+    end
+    if call.kind_of? TestML::Call
+      name = call.name
+      callable =
+          @function.getvar(name) ||
+          get_point(name) ||
+          lookup_callable(name) ||
+          fail("Can't locate '#{name}' callable")
+      if callable.kind_of? TestML::Object
+        return callable
+      end
+      return callable unless call.args or !context.nil?
+      call.args ||= []
+      args = call.args.map{|arg| run_expression(arg)}
+      args.unshift context if !context.nil?
+      if callable.kind_of? TestML::Native
+        return run_native(callable, args)
+      end
+      if callable.kind_of? TestML::Function
+        return run_function(callable, args)
+      end
+    end
   end
 
   def lookup_callable(name)
@@ -152,7 +161,7 @@ class TestML::Runtime
   end
 
   def get_point(name)
-    value = @function.getvar('Block')[:points][name]
+    value = @function.getvar('Block').points[name] or return
     if value.match /\n+\z/
       value.sub!(/\n+\z/, "\n")
       value = '' if value == "\n"
@@ -160,20 +169,14 @@ class TestML::Runtime
     TestML::Str.new(value)
   end
 
-  def run_native(native, context, args)
-    function = native.value
-    args = (args.map do |arg|
-      arg.kind_of?(TestML::Expression) ? run_expression(arg) : arg
-    end)
-    args.unshift(context) if context
-#     begin
-      value = function.call(*args)
-#     rescue Exception => e
-#       XXX e
-#       error @function.expression.error = e.message
-#       return TestML::Error.new(error)
-#     end
-    if value.kind_of?(TestML::Object)
+  def run_native native, args
+    begin
+      value = native.value.call(*args)
+    rescue
+      @error = $!.message
+      return TestML::None.new
+    end
+    if value.kind_of? TestML::Object
       return value
     else
       return object_from_native(value)
@@ -184,7 +187,7 @@ class TestML::Runtime
     return [1] if wanted.nil? or wanted.empty?
     selected = []
     @function.data.each do |block|
-      points = block[:points]
+      points = block.points
       next if points.key?('SKIP')
       next unless wanted.all?{|point| points.key?(point)}
       if points.key?('ONLY')
@@ -329,7 +332,7 @@ end
 
 class TestML::Assignment
   attr_accessor :name
-  attr_accessor :expression
+  attr_accessor :expr
 
   def initialize(name, expr)
     @name = name
@@ -338,13 +341,13 @@ class TestML::Assignment
 end
 
 class TestML::Statement
-  attr_accessor :expression
-  attr_accessor :assertion
+  attr_accessor :expr
+  attr_accessor :assert
   attr_accessor :points
 
-  def initialize(expression, assertion=nil, points=nil)
-    @expression = expression
-    @assertion = assertion if assertion
+  def initialize(expr, assert=nil, points=nil)
+    @expr = expr
+    @assert = assert if assert
     @points = points if points
   end
 end
@@ -360,11 +363,11 @@ end
 
 class TestML::Assertion
   attr_accessor :name
-  attr_accessor :expression
+  attr_accessor :expr
 
-  def initialize(name, expression=nil)
+  def initialize(name, expr=nil)
     @name = name
-    @expression = expression
+    @expr = expr
   end
 end
 
@@ -457,7 +460,11 @@ end
 class TestML::Error < TestML::Object
 end
 
-class TestML::Native < TestML::Object
+class TestML::Native 
+  attr_accessor :value
+  def initialize value
+    @value = value
+  end
 end
 
 module TestML::Constant
