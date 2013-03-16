@@ -7,23 +7,29 @@ class TestML
   attr_accessor :library
   attr_accessor :testml
 
-  require 'testml/runtime/unit'
-  require 'testml/bridge'
-  require 'testml/library/standard'
-  require 'testml/library/debug'
-
   def initialize attributes={}
     defaults = {
-      'runtime' => TestML::Runtime::Unit,
-      'bridge' => TestML::Bridge,
       'library' => [
         TestML::Library::Standard,
         TestML::Library::Debug,
       ],
     }
-    unless defaults['compiler']
+    if not attributes['runtime']
+      require 'testml/runtime/unit'
+      defaults['runtime'] = TestML::Runtime::Unit
+    end
+    if not attributes['compiler']
       require 'testml/compiler/pegex'
       defaults['compiler'] = TestML::Compiler::Pegex
+    end
+    if not attributes['bridge']
+      require 'testml/bridge'
+      defaults['bridge'] = TestML::Bridge
+    end
+    if not attributes['library']
+      require 'testml/library/standard'
+      require 'testml/library/debug'
+      defaults['library'] = TestML::Bridge
     end
     defaults.merge(attributes).each { |k,v| self.send "#{k}=", v }
 
