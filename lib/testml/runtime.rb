@@ -74,7 +74,7 @@ class TestML::Runtime
     @function.setvar(
       assignment.name,
       run_expression(assignment.expr)
-    ) 
+    )
   end
 
   def run_assertion left, assert
@@ -93,7 +93,7 @@ class TestML::Runtime
     context = nil
     @error = nil
     if expr.kind_of? TestML::Expression
-      calls = expr.calls
+      calls = expr.calls.clone
       fail if calls.size <= 1
       context = run_call(calls.shift, nil)
       calls.each do |call|
