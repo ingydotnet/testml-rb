@@ -7,10 +7,16 @@ class TestML
   attr_accessor :library
   attr_accessor :testml
 
+  require 'testml/runtime/unit'
+  require 'testml/compiler/pegex'
+  require 'testml/bridge'
+  require 'testml/library/standard'
+  require 'testml/library/debug'
+
   def initialize attributes={}
     defaults = {
       'runtime' => TestML::Runtime::Unit,
-      'compiler' => TestML::Compiler,
+      'compiler' => TestML::Compiler::Pegex,
       'bridge' => TestML::Bridge,
       'library' => [
         TestML::Library::Standard,

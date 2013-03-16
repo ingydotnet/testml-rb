@@ -10,8 +10,6 @@ class TestML::Compiler::Lite < TestML::Compiler
   attr_accessor :tokens
   attr_accessor :function
 
-
-
   WS = %r!\s+!
   ANY = %r!.!
   STAR = %r!\*!
@@ -24,7 +22,7 @@ class TestML::Compiler::Lite < TestML::Compiler
   RP = %r!\)!
   DOT = %r!\.!
   COMMA = %r!,!
-  SEMI = %r!!
+  SEMI = %r!;!
   SSTR = %r!'(?:[^']*)'!
   DSTR = %r!"(?:[^"]*)"!
   ENDING = %r!(?:#{RP}|#{COMMA}|#{SEMI})!
@@ -36,8 +34,6 @@ class TestML::Compiler::Lite < TestML::Compiler
   PUNCT = %r!(?:#{LP}|#{RP}|#{DOT}|#{COMMA}|#{SEMI})!
 
   TOKENS = %r!(?:#{POINT}|#{NUM}|#{WORD}|#{QSTR}|#{PUNCT}|#{OPER})!
-
-
 
   def compile_code
     @function = TestML::Function.new
@@ -101,7 +97,6 @@ class TestML::Compiler::Lite < TestML::Compiler
 
   def parse_expression
     calls = []
-
     while !done and peek !~ /^(#{ENDING}|#{COMP})$/ do
       token = pop
       if token =~ /^#{NUM}$/
@@ -149,7 +144,7 @@ class TestML::Compiler::Lite < TestML::Compiler
     blocks.each{|block| block.sub! /\n+\z/, "\n"}
 
     data = []
-    @blocks.each do |string_block|
+    blocks.each do |string_block|
       block = TestML::Block.new
       string_block.gsub! /\A===\ +(.*?)\ *\n/, '' or
         fail "No block label! #{string_block}"
@@ -186,7 +181,8 @@ class TestML::Compiler::Lite < TestML::Compiler
 
   def pop(count=1)
     fail if count > @tokens.size
-    @tokens.slice! 0..(count-1)
+    array = @tokens.slice! 0..(count-1)
+    count > 1 ? array : array[0]
   end
 
   def fail_(message)

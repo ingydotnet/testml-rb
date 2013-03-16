@@ -14,7 +14,7 @@ class TestML::Compiler
     compile_data
 
     if @directives['DumpAST']
-        XXX @function
+      XXX @function
     end
 
     @function.namespace['TestML'] = @directives['TestML']
@@ -29,10 +29,10 @@ class TestML::Compiler
     input = ''
 
     @directives = {
-        'TestML' => '',
-        'DataMarker' => '',
-        'BlockMarker' => '===',
-        'PointMarker' => '---',
+      'TestML' => nil,
+      'DataMarker' => nil,
+      'BlockMarker' => '===',
+      'PointMarker' => '---',
     }
 
     order_error = false
@@ -83,24 +83,24 @@ class TestML::Compiler
     end
 
     if top
-        fail "No TestML directive found" \
-            unless directives['TestML']
-        fail "%TestML directive must be the first (non-comment) statement" \
-            if order_error
+      fail "No TestML directive found" \
+        unless directives['TestML']
+      fail "%TestML directive must be the first (non-comment) statement" \
+        if order_error
 
-        _DataMarker = directives['DataMarker'] ||= directives['BlockMarker']
-        if split = input.index("\n#{_DataMarker}")
-            @code = input[0..($split + 1)]
-            @data = input[($split + 1)..-1]
-        else
-            @code = input
-            @data = ''
-        end
+      _DataMarker = directives['DataMarker'] ||= directives['BlockMarker']
+      if split = input.index("\n#{_DataMarker}")
+        @code = input[0..(split)]
+        @data = input[(split + 1)..-1]
+      else
+        @code = input
+        @data = ''
+      end
 
-        @code.gsub! /^\\(\\*[\%\#])/, '\1'
-        @data.gsub! /^\\(\\*[\%\#])/, '\1'
+      @code.gsub! /^\\(\\*[\%\#])/, '\1'
+      @data.gsub! /^\\(\\*[\%\#])/, '\1'
     else
-        @text = input
+      @text = input
     end
   end
 end
