@@ -2,6 +2,8 @@
 # This is the Lite version of the TestML compiler. It can parse simple
 # statements and assertions and also parse the TestML data format.
 
+require 'testml/compiler'
+
 class TestML::Compiler::Lite < TestML::Compiler
   require 'testml/runtime'
 

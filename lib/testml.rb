@@ -8,7 +8,6 @@ class TestML
   attr_accessor :testml
 
   require 'testml/runtime/unit'
-  require 'testml/compiler/pegex'
   require 'testml/bridge'
   require 'testml/library/standard'
   require 'testml/library/debug'
@@ -16,13 +15,16 @@ class TestML
   def initialize attributes={}
     defaults = {
       'runtime' => TestML::Runtime::Unit,
-      'compiler' => TestML::Compiler::Pegex,
       'bridge' => TestML::Bridge,
       'library' => [
         TestML::Library::Standard,
         TestML::Library::Debug,
       ],
     }
+    unless defaults['compiler']
+      require 'testml/compiler/pegex'
+      defaults['compiler'] = TestML::Compiler::Pegex
+    end
     defaults.merge(attributes).each { |k,v| self.send "#{k}=", v }
 
     @runtime.register self
