@@ -10,15 +10,14 @@ class TestML::Library::Standard < TestML::Library
     return value
   end
 
-  def Throw msg
-    runtime.function.expression.error = msg
+  def Throw(msg)
+    fail(msg.value)
   end
 
-  # TODO @error should probably just be the error message string
   def Catch any=nil
     fail "Catch called, but no error occurred" \
-      unless error = runtime.function.expression.error
-    runtime.function.expression.error = nil
-    return error
+      unless error = runtime.error
+    runtime.error = nil
+    return str error
   end
 end

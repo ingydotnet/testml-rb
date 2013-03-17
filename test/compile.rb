@@ -8,6 +8,9 @@ require 'yaml'
 class TestCompile < Test::Unit::TestCase
   def test_compile
     compile('test/testml/arguments.tml', TestML::Compiler::Lite)
+    compile('test/testml/basic.tml', TestML::Compiler::Lite)
+    compile('test/testml/exceptions.tml', TestML::Compiler::Lite)
+    compile('test/testml/semicolons.tml', TestML::Compiler::Lite)
   end
 
   def compile(file, compiler=TestML::Compiler)

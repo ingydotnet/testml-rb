@@ -9,11 +9,12 @@ class TestML::Runtime
   attr_accessor :skip
 
   attr_accessor :function
+  attr_accessor :error
 
   def initialize(attributes={})
     attributes.each { |k,v| self.send "#{k}=", v }
     $TestMLRuntimeSingleton = self
-    @base ||= 'test/lite' # XXX remove this!
+    @base ||= 'test/lite'           # XXX remove this!
   end
 
   def run
@@ -95,7 +96,7 @@ class TestML::Runtime
     if expr.kind_of? TestML::Expression
       calls = expr.calls.clone
       fail if calls.size <= 1
-      context = run_call(calls.shift, nil)
+      context = run_call(calls.shift)
       calls.each do |call|
         if @error
           next unless
@@ -354,7 +355,6 @@ end
 
 class TestML::Expression
   attr_accessor :calls
-  attr_accessor :error
 
   def initialize(calls=[])
     @calls = calls

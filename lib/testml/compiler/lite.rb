@@ -67,8 +67,8 @@ class TestML::Compiler::Lite < TestML::Compiler
     return unless peek(2) == '='
     var, op = pop(2)
     expr = parse_expression
-    pop if !done and peek == ''
-    fail unless done
+    pop if !done and peek == ';'
+    XXX tokens unless done
     @function.statements.push TestML::Assignment.new(var, expr)
     return true
   end
@@ -83,7 +83,7 @@ class TestML::Compiler::Lite < TestML::Compiler
       token == '~~' ? 'HAS' :
       fail_
     right = parse_expression
-    pop if !done and peek == ''
+    pop if !done and peek == ';'
     fail_ unless done
 
     @function.statements.push TestML::Statement.new(
@@ -187,7 +187,7 @@ class TestML::Compiler::Lite < TestML::Compiler
     count > 1 ? array : array[0]
   end
 
-  def fail_(message)
+  def fail_(message=nil)
     text = "Failed to compile TestML document.\n"
     text << "Reason: #{message}\n" if message
     text << "\nCode section of failure:\n#{@line}\n#{@code}\n"

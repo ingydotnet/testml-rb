@@ -8,12 +8,7 @@ class TestML
   attr_accessor :testml
 
   def initialize attributes={}
-    defaults = {
-      'library' => [
-        TestML::Library::Standard,
-        TestML::Library::Debug,
-      ],
-    }
+    defaults = {}
     if not attributes['runtime']
       require 'testml/runtime/unit'
       defaults['runtime'] = TestML::Runtime::Unit
@@ -29,7 +24,10 @@ class TestML
     if not attributes['library']
       require 'testml/library/standard'
       require 'testml/library/debug'
-      defaults['library'] = TestML::Bridge
+      defaults['library'] = [
+        TestML::Library::Standard,
+        TestML::Library::Debug,
+      ]
     end
     defaults.merge(attributes).each { |k,v| self.send "#{k}=", v }
 
