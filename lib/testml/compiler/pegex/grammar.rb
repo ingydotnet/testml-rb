@@ -1,4 +1,5 @@
 require 'pegex/grammar'
+require 'testml/compiler/pegex'
 
 class TestML::Compiler::Pegex::Grammar < Pegex::Grammar
   File = '../testml-pgx/testml.pgx'

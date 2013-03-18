@@ -1,4 +1,5 @@
 require 'pegex/tree'
+require 'testml/compiler/pegex'
 
 class TestML::Compiler::Pegex::AST < Pegex::Tree
   require 'testml/runtime'

@@ -1,6 +1,6 @@
 require 'pegex/parser'
 require 'testml/compiler'
-# require 'testml/compiler/pegex/grammar'
+require 'testml/compiler/pegex/grammar'
 require 'testml/compiler/pegex/ast'
 
 class TestML::Compiler::Pegex < TestML::Compiler
