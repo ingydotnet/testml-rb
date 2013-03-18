@@ -10,11 +10,13 @@ class TestML::Runtime
 
   attr_accessor :function
   attr_accessor :error
+  attr_accessor :global
 
   def initialize(attributes={})
     attributes.each { |k,v| self.send "#{k}=", v }
     $TestMLRuntimeSingleton = self
     @base ||= 'test/lite'           # XXX remove this!
+#     @base ||= 'test'           # XXX remove this!
   end
 
   def run
@@ -23,16 +25,15 @@ class TestML::Runtime
 
     run_function(
       @function,
-      nil,
       [],
     )
   end
 
-  def run_function(function, context, args)
-    signature = function.signature ||= {}
-    function.setvar('Self', context)
+  def run_function(function, args)
+    signature = apply_signature(function, args)
 
     parent = @function
+    @function = function
 
     function.statements.each do |statement|
       if statement.kind_of? TestML::Assignment
@@ -47,11 +48,13 @@ class TestML::Runtime
   end
 
   def apply_signature(function, args)
-    fail "Function received #{args.size} args but expected #{signature.size}" \
-      if ! @signature.enpty? and @args.size != @signature.size
+    signature = function.signature
 
-    @function.setvar('Self', @function)
-    @signature.each_with_index do |sig_elem, i|
+    fail "Function received #{args.size} args but expected #{signature.size}" \
+      if ! signature.empty? and @args.size != signature.size
+
+    @function.setvar('Self', function)
+    signature.each_with_index do |sig_elem, i|
       arg = args[i]
       arg = run_expression(arg) \
         if arg.kind_of TestML::Expression
@@ -60,13 +63,13 @@ class TestML::Runtime
   end
 
   def run_statement(statement)
-    blocks = select_blocks(statement.points)
+    blocks = select_blocks(statement.points || [])
     blocks.each do |block|
       @function.setvar('Block', block) if block != 1
 
-      context = run_expression(statement.expr)
+      result = run_expression(statement.expr)
       if assertion = statement.assert
-        run_assertion(context, assertion)
+        run_assertion(result, assertion)
       end
     end
   end
@@ -144,7 +147,9 @@ class TestML::Runtime
       if callable.kind_of? TestML::Function
         return run_function(callable, args)
       end
+      fail
     end
+    fail
   end
 
   def lookup_callable(name)
@@ -163,11 +168,10 @@ class TestML::Runtime
 
   def get_point(name)
     value = @function.getvar('Block').points[name] or return
-    if value.match /\n+\z/
-      value.sub!(/\n+\z/, "\n")
-      value = '' if value == "\n"
+    if value.sub!(/\n+\z/, "\n") and value == "\n"
+      value = ''
     end
-    TestML::Str.new(value)
+    return TestML::Str.new(value)
   end
 
   def run_native native, args
@@ -185,7 +189,7 @@ class TestML::Runtime
   end
 
   def select_blocks(wanted)
-    return [1] if wanted.nil? or wanted.empty?
+    return [1] if wanted.empty?
     selected = []
     @function.data.each do |block|
       points = block.points
@@ -215,70 +219,52 @@ class TestML::Runtime
   def compile_testml
     fail "'testml' document required but not found" \
       unless @testml
-    if not @testml.match /\n/
-      m = @testml.match(/(.*)\/(.*)/) or fail
-      testml = m[2]
-      @base = @base + '/' + m[1]
+    if @testml !~ /\n/
+      @testml =~ /(.*)\/(.*)/ or fail
+      testml = $2
+      @base = @base + '/' + $1
       @testml = read_testml_file testml
     end
-    # require_class_library(@compiler)
     @function = @compiler.new.compile(@testml)
   end
 
   def initialize_runtime
-    global = @function.outer
+    @global = @function.outer
 
-    # Set global variables.
-    global.setvar('Block', TestML::Block.new)
-    global.setvar('Label', TestML::Str.new('$BlockLabel'))
-    global.setvar('True', TestML::Constant::True)
-    global.setvar('False', TestML::Constant::False)
-    global.setvar('None', TestML::Constant::None)
-    global.setvar('TestNumber', TestML::Num.new(0))
-    global.setvar('Library', TestML::List.new)
+    @global.setvar('Block', TestML::Block.new)
+    @global.setvar('Label', TestML::Str.new('$BlockLabel'))
+    @global.setvar('True', TestML::Constant::True)
+    @global.setvar('False', TestML::Constant::False)
+    @global.setvar('None', TestML::Constant::None)
+    @global.setvar('TestNumber', TestML::Num.new(0))
+    @global.setvar('Library', TestML::List.new)
 
+    library = @function.getvar('Library')
     [@bridge, @library].each do |lib|
       if lib.kind_of? Array
-        lib.each {|l| add_library(l)}
+        lib.each {|l| library.push(l.new)}
       else
-        add_library(lib)
+        library.push(lib.new)
       end
     end
   end
 
-  def add_library library
-    if (not library.respond_to? :new)
-      fail
-      #eval "require $library";
-    end
-    @function.getvar('Library').push(library.new);
-  end
-
+  # XXX need aocole's help to port this
   def get_label
-    return 'foo'
     label = @function.getvar('Label').value
-    def label(var)
-      block = @function.getvar('Block')
-      return block.label if var == 'BlockLabel'
-      if v = block.points[var]
-          v.sub!(/\n.*/m, '')
-          v.strip!
-          return v
-      end
-      if v = function.getvar(var)
-          return v.value
-      end
-    end
-    # label.sub!(/\$(\w+)/g, label($self, $1)
-    return label
-  end
-
-  def run_plan
-    if !@planned
-      title
-      plan_begin
-      @planned = true
-    end
+#     label.sub /\$(\w+)/ do |m|
+#       var = $1
+#       block = @function.getvar('Block')
+#       return block.label if var == 'BlockLabel'
+#       if v = block.points[var]
+#           v.sub!(/\n.*/m, '')
+#           v.strip!
+#           return v
+#       end
+#       if v = function.getvar(var)
+#           return v.value
+#       end
+#     end
   end
 
   def read_testml_file file
@@ -287,27 +273,27 @@ class TestML::Runtime
   end
 end
 
-# TestML Function object class
+#-----------------------------------------------------------------------------
 class TestML::Function
-  attr_accessor :expression
+  attr_accessor :type
   attr_accessor :signature
   attr_accessor :statements
   attr_accessor :namespace
   attr_accessor :data
 
   @@outer = {}
-
-  def outer=(value)
-    @@outer[self.object_id] = value
-  end
   def outer
     @@outer[self.object_id]
   end
+  def outer=(value)
+    @@outer[self.object_id] = value
+  end
 
   def initialize
-    # @signature = []
-    @statements = []
+    @type = 'Func'
+    @signature = []
     @namespace = {}
+    @statements = []
     @data = []
   end
 
@@ -319,11 +305,11 @@ class TestML::Function
       end
       s = s.outer
     end
-    return nil
+    nil
   end
 
-  def setvar name, object
-    @namespace[name] = object
+  def setvar name, value
+    @namespace[name] = value
   end
 
   def forgetvar name
@@ -331,6 +317,7 @@ class TestML::Function
   end
 end
 
+#-----------------------------------------------------------------------------
 class TestML::Assignment
   attr_accessor :name
   attr_accessor :expr
@@ -341,6 +328,7 @@ class TestML::Assignment
   end
 end
 
+#-----------------------------------------------------------------------------
 class TestML::Statement
   attr_accessor :expr
   attr_accessor :assert
@@ -353,6 +341,7 @@ class TestML::Statement
   end
 end
 
+#-----------------------------------------------------------------------------
 class TestML::Expression
   attr_accessor :calls
 
@@ -361,6 +350,7 @@ class TestML::Expression
   end
 end
 
+#-----------------------------------------------------------------------------
 class TestML::Assertion
   attr_accessor :name
   attr_accessor :expr
@@ -371,17 +361,18 @@ class TestML::Assertion
   end
 end
 
+#-----------------------------------------------------------------------------
 class TestML::Call
   attr_accessor :name
   attr_accessor :args
 
-  def initialize(name, args=[], explicit_call=false)
+  def initialize(name, args=[])
     @name = name
     @args = args if !args.empty?
-    @explicit_call = explicit_call if explicit_call
   end
 end
 
+#-----------------------------------------------------------------------------
 class TestML::Block
   attr_accessor :label
   attr_accessor :points
@@ -392,6 +383,7 @@ class TestML::Block
   end
 end
 
+#-----------------------------------------------------------------------------
 class TestML::Point
   attr_accessor :name
 
@@ -400,11 +392,18 @@ class TestML::Point
   end
 end
 
+#-----------------------------------------------------------------------------
 class TestML::Object
   attr_accessor :value
 
   def initialize(value)
     @value = value
+  end
+
+  def type
+    type = self.class.to_s
+    type.sub! /^Type::/, '' or fail "Can't find type of '#{type}'"
+    return type
   end
 
   def str
@@ -424,42 +423,86 @@ class TestML::Object
   end
 end
 
+#-----------------------------------------------------------------------------
+class TestML::Str < TestML::Object
+  def str
+    self
+  end
+  def num
+    TestML::Num.new(@value =~ /^-?\d+(?:\.\d+)$/ ? $1.to_i : 0)
+  end
+  def bool
+    !@value.empty? ? TestML::Constant::True : TestML::Constant::False
+  end
+  def list
+    TestML::List.new(@value.split //)
+  end
+end
+
+#-----------------------------------------------------------------------------
+class TestML::Num < TestML::Object
+  def str
+    TestML::Str.new(@value.to_s)
+  end
+  def num
+    self
+  end
+  def bool
+    @value != 0 ? TestML::Constant::True : TestML::Constant::False
+  end
+  def list
+    list = []
+    [1..(@value-1)].each { |i| list[i - 1] = nil }
+  end
+end
+
+#-----------------------------------------------------------------------------
+class TestML::Bool < TestML::Object
+  def str
+    TestML::Str.new(@value ? "1" : "")
+  end
+  def num
+    TestML::Num.new(@value ? 1 : 0)
+  end
+  def bool
+    self
+  end
+end
+
+#-----------------------------------------------------------------------------
 class TestML::List < TestML::Object
   def initialize(value=[])
     super(value)
   end
-
   def push elem
     @value.push elem
   end
 end
 
-class TestML::Str < TestML::Object
-end
-
-class TestML::Num < TestML::Object
-end
-
-class TestML::Bool < TestML::Object
-end
-
+#-----------------------------------------------------------------------------
 class TestML::None < TestML::Object
   def initialize
     super(nil)
   end
-
+  def str
+    TestML::Str.new('')
+  end
+  def num
+    TestML::Num.new(0)
+  end
   def bool
     TestML::Constant::False
   end
-
   def list
     TestML::List.new []
   end
 end
 
+#-----------------------------------------------------------------------------
 class TestML::Error < TestML::Object
 end
 
+#-----------------------------------------------------------------------------
 class TestML::Native 
   attr_accessor :value
   def initialize value
@@ -467,6 +510,7 @@ class TestML::Native
   end
 end
 
+#-----------------------------------------------------------------------------
 module TestML::Constant
   True = TestML::Bool.new(value: 1)
   False = TestML::Bool.new(value: 0)

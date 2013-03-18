@@ -1,6 +1,6 @@
 class TestML::Library
   def runtime
-    return $TestMLRuntimeSingleton
+    $TestMLRuntimeSingleton
   end
 end
 

@@ -1,10 +1,3 @@
-##
-# name:      TestML::Setup
-# author:    Ingy döt Net <ingy@cpan.org>
-# abstract:  Generate Test Files for a TestML Suite
-# license:   perl
-# copyright: 2010-2013
-
 require 'rake'
 require 'yaml'
 require 'pathname'

@@ -8,33 +8,16 @@ class TestML
   attr_accessor :testml
 
   def initialize attributes={}
-    defaults = {}
-    if not attributes['runtime']
+    attributes.each { |k,v| self.send "#{k}=", v }
+    if not @runtime
       require 'testml/runtime/unit'
-      defaults['runtime'] = TestML::Runtime::Unit
+      @runtime = TestML::Runtime::Unit
     end
-    if not attributes['compiler']
-      require 'testml/compiler/pegex'
-      defaults['compiler'] = TestML::Compiler::Pegex
-    end
-    if not attributes['bridge']
-      require 'testml/bridge'
-      defaults['bridge'] = TestML::Bridge
-    end
-    if not attributes['library']
-      require 'testml/library/standard'
-      require 'testml/library/debug'
-      defaults['library'] = [
-        TestML::Library::Standard,
-        TestML::Library::Debug,
-      ]
-    end
-    defaults.merge(attributes).each { |k,v| self.send "#{k}=", v }
-
     @runtime.register self
   end
 
   def run
+    set_default_classes
     @runtime.new(
       compiler: @compiler,
       bridge: @bridge,
@@ -42,9 +25,23 @@ class TestML
       testml: @testml,
     ).run
   end
-end
 
-# XXX Eliminate these. Make dynamic.
-require 'testml/runtime/unit'
-require 'testml/library/standard'
-require 'testml/library/debug'
+  def set_default_classes
+    if not @compiler
+      require 'testml/compiler/pegex'
+      @compiler = TestML::Compiler::Pegex
+    end
+    if not @bridge
+      require 'testml/bridge'
+      @bridge = TestML::Bridge
+    end
+    if not @library
+      require 'testml/library/standard'
+      require 'testml/library/debug'
+      @library = [
+        TestML::Library::Standard,
+        TestML::Library::Debug,
+      ]
+    end
+  end
+end

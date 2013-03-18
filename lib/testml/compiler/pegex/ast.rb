@@ -1,0 +1,130 @@
+require 'pegex/tree'
+
+class TestML::Compiler::Pegex::AST < Pegex::Tree
+  require 'testml/runtime'
+
+  attr_accessor :points
+  attr_accessor :function
+
+  def initialize
+    @points = []
+    @function = TestML::Function.new
+  end
+
+  def got_code_section(code)
+    @function.statements = code
+  end
+
+  def got_assignment_statement(match)
+    return TestML::Assignment.new(match[0], match[1])
+  end
+
+  def got_code_statement(list)
+    points = @points
+    @points = []
+    list.each do |e|
+      if e.kind_of? TestML::Assertion
+        assertion = e
+      else
+        expression = e
+      end
+    end
+    return TestML::Statement.new(
+      expression,
+      assertion,
+      !points.empty? ? points : nil,
+    )
+  end
+
+  def got_code_expression(list)
+    calls = []
+    calls.push(list.shift) if !list.empty?
+    list !list.empty? ? list.shift : []
+    list.each do |e|
+      call = e[0]
+      calls.push(call)
+    end
+    return calls[0] if calls.size == 1
+    return TestML::Expression.new(calls)
+  end
+
+  def got_string_object(string)
+    return TestML::Str.new(string)
+  end
+
+  def got_number_object(number)
+    return TestML::Num.new(number)
+  end
+
+  def got_point_object(point)
+    point.sub!(/^\*/, '') or fail
+    @points.push(point)
+    return TestML::Point.new(point)
+  end
+
+  def got_assertion_call(call)
+    %w( eq has ok ).each do |a|
+      if expr = call["assertion_#{a}"]
+        name = a.upcase
+        expr =
+          expr["assertion_operator_#{a}"] ||
+          expr["assertion_function_#{a}"]
+        break
+      end
+    end
+    return TestML::Assertion.new(name, expr)
+  end
+
+  def got_assertion_function_ok(ok)
+    return { 'assertion_function_ok' => [] }
+  end
+
+  def got_function_start
+    function = TestML::Function.new
+    function.outer(@function)
+    @function = function
+    return true
+  end
+
+  def got_function_object(object)
+    function = @function
+    @function = @function.outer
+    fail "TODO"
+  end
+
+  def got_call_name(name)
+    return TestML::Call.new(name)
+  end
+
+  def got_call_object(object)
+    call = object[0]
+    args = object[0][-1]
+    if args
+      args = args.map do |arg|
+        fail "TODO"
+      end
+      call.args = args
+    end
+    return call
+  end
+
+  def got_call_argument_list(list)
+    return list
+  end
+
+  def got_call_indicator
+    return
+  end
+
+  def got_data_section(data)
+    @function.data = data
+  end
+
+  def got_data_block(block)
+    return TestML::Block.new(block[0][0][0], fail("TODO"))
+  end
+
+  def got_block_point(point)
+    return { point[0] => point[1] }
+  end
+end

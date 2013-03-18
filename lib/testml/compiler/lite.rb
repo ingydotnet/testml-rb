@@ -1,7 +1,3 @@
-##
-# This is the Lite version of the TestML compiler. It can parse simple
-# statements and assertions and also parse the TestML data format.
-
 require 'testml/compiler'
 
 class TestML::Compiler::Lite < TestML::Compiler
@@ -68,7 +64,7 @@ class TestML::Compiler::Lite < TestML::Compiler
     var, op = pop(2)
     expr = parse_expression
     pop if !done and peek == ';'
-    XXX tokens unless done
+    fail_() unless done
     @function.statements.push TestML::Assignment.new(var, expr)
     return true
   end
@@ -124,7 +120,9 @@ class TestML::Compiler::Lite < TestML::Compiler
       end
     end
 
-    return calls.size == 1 ? calls[0] : TestML::Expression.new(calls)
+    return calls.size == 1 \
+      ? calls[0]
+      : TestML::Expression.new(calls)
   end
 
   def parse_args
@@ -155,7 +153,7 @@ class TestML::Compiler::Lite < TestML::Compiler
         next if string_block.sub! /\A\n+/, ''
         key, value = nil, nil
         if string_block.gsub!(/\A---\ +(\w+):\ +(.*)\n/, '') or
-            string_block.gsub!(/\A---\ +(\w+)\n(.*?)(?=^---|\z)/m, '')
+           string_block.gsub!(/\A---\ +(\w+)\n(.*?)(?=^---|\z)/m, '')
           key, value = $1, $2
         else
           fail "Failed to parse TestML string:\n#{string_block}"
@@ -193,5 +191,4 @@ class TestML::Compiler::Lite < TestML::Compiler
     text << "\nCode section of failure:\n#{@line}\n#{@code}\n"
     fail text
   end
-
 end

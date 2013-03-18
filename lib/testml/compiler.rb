@@ -25,7 +25,6 @@ class TestML::Compiler
 
   def preprocess(input, top=nil)
     parts = input.split /^((?:\%\w+.*|\#.*|\ *)\n)/
-
     input = ''
 
     @directives = {
@@ -88,7 +87,9 @@ class TestML::Compiler
       fail "%TestML directive must be the first (non-comment) statement" \
         if order_error
 
-      _DataMarker = directives['DataMarker'] ||= directives['BlockMarker']
+        _DataMarker =
+           directives['DataMarker'] ||=
+           directives['BlockMarker']
       if split = input.index("\n#{_DataMarker}")
         @code = input[0..(split)]
         @data = input[(split + 1)..-1]

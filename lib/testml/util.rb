@@ -10,4 +10,10 @@ module TestML::Util
   def bool(value)
     TestML::Bool.new(value)
   end
+  def none(value)
+    TestML::None.new(value)
+  end
+  def list(value)
+    TestML::List.new(value)
+  end
 end

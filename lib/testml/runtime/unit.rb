@@ -6,18 +6,22 @@ require 'testml/runtime'
 # "test_#{test_file_name}" into this class, since we know that Test::Unit
 # calls methods that begin with 'test'.
 class TestML::TestCase < Test::Unit::TestCase
+  attr_accessor :name
 end
 
-# This is the Runtime class that support Ruby's Test::Unit test framework.
 class TestML::Runtime::Unit < TestML::Runtime
   attr_accessor :testcase
+  attr_accessor :planned
+
+  def initialize(*args)
+    @planned = false
+    super(*args)
+  end
 
   # As TestML objects are created, they get put into this class hash variable
   # keyed by the file name that instantiated them.
   @@Tests = Hash.new
-  def self.Tests
-    @@Tests
-  end
+  def self.Tests; @@Tests end
 
   TestFilePattern = 'test\\/((?:.*\\/)?[-\\w+]+)\\.rb'
   def self.register test
@@ -38,18 +42,55 @@ class TestML::Runtime::Unit < TestML::Runtime
         or fail "No test object for '#{testname}'"
       # $TestMLRuntimeSingleton.testcase = self
       $testcase = self
+      $testcase.name = testname
       test.run
     end
   end
 
   def run
     super
+    check_plan
+    plan_end
   end
 
-  def assert_EQ got, want
+  def run_assertion(*args)
+    check_plan
+    super(*args)
+  end
+
+  def check_plan
+    if ! @planned
+      title
+      plan_begin
+      @planned = true
+    end
+  end
+
+  # XXX Need to disable by default and provide a simple way to turn on.
+  def title
+    if title = @function.getvar('Title') || $testcase.name
+      title = title.value if title.kind_of? TestML::Str
+      title = "\n=== #{title} ===\n"
+      STDERR.write title
+    end
+  end
+
+  def skip_test(reason)
+    fail "TODO"
+  end
+
+  def plan_begin;end
+
+  def plan_end
+    if plan = @function.getvar('Plan')
+      count = @function.getvar('TestNumber').value
+      $testcase.assert_equal plan.value.to_i, count, 'Tests Planned'
+    end
+  end
+
+  def assert_EQ(got, want)
     got = got.value
     want = want.value
-    # @testcase.assert_equal want, got, get_label
     $testcase.assert_equal want, got, get_label
     # TODO Move this logic to testml/diff
     if got != want
@@ -58,19 +99,29 @@ class TestML::Runtime::Unit < TestML::Runtime
       elsif want.value.match /\n/
         File.open('/tmp/got', 'w') {|f| f.write got}
         File.open('/tmp/want', 'w') {|f| f.write want}
-        puts `diff -u /tmp/want /tmp/got`
+        STDERR.write(`diff -u /tmp/want /tmp/got`)
       end
     end
   end
 
-  def assert_HAS got, want
-    # @testcase.assert_match want.value, got.value, get_label
-    $testcase.assert_match want.value, got.value, get_label
+  def assert_HAS(got, has)
+    got = got.value
+    has = has.value
+    assertion = got.index(has)
+    if !assertion
+      msg = <<"..."
+Failed TestML HAS (~~) assertion. This text:
+'#{got}'
+does not contain this string:
+'#{has}'
+...
+      STDERR.write(msg)
+    end
+    $testcase.assert(assertion, get_label)
   end
 
-  # TODO Support OK
-  def assert_OK got
-    fail 'TODO'
+  def assert_OK(got)
+    $testcase.assert(got.bool.value, get_label)
   end
 
 end
