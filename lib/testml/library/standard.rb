@@ -5,6 +5,7 @@ class TestML::Library::Standard < TestML::Library
   include TestML::Util
 
   def Get(key)
+    key = key.str.value
     return runtime.function.getvar(key)
   end
 

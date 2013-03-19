@@ -28,7 +28,7 @@ class TestML::Compiler::Pegex < TestML::Compiler
 
     block_marker = @directives['BlockMarker']
     if block_marker
-      block_marker.gsub! /([\$\%\^\*\+\?\|])/, '\\\1'
+      block_marker.gsub! /([\$\%\^\*\+\?\|])/, '\\\\\1'
       tree['block_marker']['.rgx'] = %r!\A#{block_marker}!
       tree['point_lines']['.rgx'] = Regexp.new(
         point_lines.to_s.sub!(/===/, block_marker)
@@ -37,7 +37,7 @@ class TestML::Compiler::Pegex < TestML::Compiler
 
     point_marker = @directives['PointMarker']
     if point_marker
-      point_marker.gsub! /([\$\%\^\*\+\?\|])/, '\\\1'
+      point_marker.gsub! /([\$\%\^\*\+\?\|])/, '\\\\\1'
       tree['point_marker']['.rgx'] = %r!\A#{point_marker}!
       tree['point_lines']['.rgx'] = Regexp.new(
         point_lines.to_s.sub!(/\\-\\-\\-/, point_marker)

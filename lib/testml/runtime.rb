@@ -248,22 +248,20 @@ class TestML::Runtime
     end
   end
 
-  # XXX need aocole's help to port this
   def get_label
     label = @function.getvar('Label').value
-#     label.sub /\$(\w+)/ do |m|
-#       var = $1
-#       block = @function.getvar('Block')
-#       return block.label if var == 'BlockLabel'
-#       if v = block.points[var]
-#           v.sub!(/\n.*/m, '')
-#           v.strip!
-#           return v
-#       end
-#       if v = function.getvar(var)
-#           return v.value
-#       end
-#     end
+    label.gsub /\$(\w+)/ do |m|
+      var = $1
+      block = @function.getvar('Block')
+      if var == 'BlockLabel'
+        block.label
+      elsif v = block.points[var]
+        v.sub!(/\n.*/m, '')
+        v.strip
+      elsif v = function.getvar(var)
+        v.value
+      end
+    end
   end
 
   def read_testml_file file
