@@ -1,13 +1,11 @@
 require 'pegex/parser'
 require 'testml/compiler'
-require 'testml/compiler/pegex/grammar'
-require 'testml/compiler/pegex/ast'
 
 class TestML::Compiler::Pegex < TestML::Compiler
   attr_accessor :parser
 
   def compile_code
-    @parser = Pegex::Parser.new(
+    @parser = ::Pegex::Parser.new(
       TestML::Compiler::Pegex::Grammar,
       TestML::Compiler::Pegex::AST,
     )
@@ -43,3 +41,6 @@ class TestML::Compiler::Pegex < TestML::Compiler
     end
   end
 end
+
+require 'testml/compiler/pegex/grammar'
+require 'testml/compiler/pegex/ast'
