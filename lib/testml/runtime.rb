@@ -15,8 +15,6 @@ class TestML::Runtime
   def initialize(attributes={})
     attributes.each { |k,v| self.send "#{k}=", v }
     $TestMLRuntimeSingleton = self
-#     @base ||= 'test/lite'           # XXX remove this!
-    @base ||= 'test'           # XXX remove this!
   end
 
   def run
@@ -48,7 +46,7 @@ class TestML::Runtime
   end
 
   def apply_signature(function, args)
-    signature = function.signature
+    signature = function.signature || []
 
     fail "Function received #{args.size} args but expected #{signature.size}" \
       if ! signature.empty? and @args.size != signature.size
@@ -275,7 +273,6 @@ end
 
 #-----------------------------------------------------------------------------
 class TestML::Function
-  attr_accessor :type
   attr_accessor :signature
   attr_accessor :statements
   attr_accessor :namespace
@@ -289,12 +286,13 @@ class TestML::Function
     @@outer[self.object_id] = value
   end
 
+  def type
+    'Func'
+  end
+
   def initialize
-    @type = 'Func'
-    @signature = []
     @namespace = {}
     @statements = []
-    @data = []
   end
 
   def getvar name
@@ -377,9 +375,9 @@ class TestML::Block
   attr_accessor :label
   attr_accessor :points
 
-  def initialize
-    @label = ''
-    @points = {}
+  def initialize(label='', points={})
+    @label = label
+    @points = points
   end
 end
 

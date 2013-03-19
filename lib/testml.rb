@@ -6,6 +6,7 @@ class TestML
   attr_accessor :bridge
   attr_accessor :library
   attr_accessor :testml
+  attr_accessor :base
 
   def initialize attributes={}
     attributes.each { |k,v| self.send "#{k}=", v }
@@ -23,6 +24,7 @@ class TestML
       bridge: @bridge,
       library: @library,
       testml: @testml,
+      base: @base,
     ).run
   end
 

@@ -25,9 +25,11 @@ class TestML::Runtime::Unit < TestML::Runtime
 
   TestFilePattern = 'test\\/((?:.*\\/)?[-\\w+]+)\\.rb'
   def self.register test
-    name = caller.map {|s| s.split(':').first} \
+    filename = caller.map {|s| s.split(':').first} \
       .grep(/(^|\/)#{TestFilePattern}$/).first \
       or fail caller.join("\n")
+    name = filename.clone
+    test.base = filename.sub!(/(.*)\/.*/, '\1') ? filename : '.'
     name.gsub!(/^(?:.*\/)?#{TestFilePattern}$/, '\1') \
       .gsub!(/[^\w]+/, '_')
     testname =  "test_#{name}"

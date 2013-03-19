@@ -1,12 +1,24 @@
 require 'test/unit'
 
 require 'testml/runtime'
-require 'testml/compiler'
 require 'testml/compiler/lite'
+require 'testml/compiler/pegex'
 require 'yaml'
 
 class TestCompile < Test::Unit::TestCase
   def test_compile
+    compile('test/testml/arguments.tml', TestML::Compiler::Pegex)
+    compile('test/testml/basic.tml', TestML::Compiler::Pegex)
+    compile('test/testml/dataless.tml', TestML::Compiler::Pegex)
+    compile('test/testml/exceptions.tml', TestML::Compiler::Pegex)
+    compile('test/testml/external.tml', TestML::Compiler::Pegex)
+#     compile('test/testml/function.tml', TestML::Compiler::Pegex)
+    compile('test/testml/label.tml', TestML::Compiler::Pegex)
+#     compile('test/testml/markers.tml', TestML::Compiler::Pegex)
+    compile('test/testml/semicolons.tml', TestML::Compiler::Pegex)
+#     compile('test/testml/truth.tml', TestML::Compiler::Pegex)
+#     compile('test/testml/types.tml', TestML::Compiler::Pegex)
+
     compile('test/testml/arguments.tml', TestML::Compiler::Lite)
     compile('test/testml/basic.tml', TestML::Compiler::Lite)
     compile('test/testml/exceptions.tml', TestML::Compiler::Lite)

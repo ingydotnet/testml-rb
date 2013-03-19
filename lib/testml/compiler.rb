@@ -17,6 +17,7 @@ class TestML::Compiler
       XXX @function
     end
 
+    @function.namespace ||= {}
     @function.namespace['TestML'] = @directives['TestML']
 
     @function.outer = TestML::Function.new
@@ -54,7 +55,7 @@ class TestML::Compiler
         end
         order_error = true unless directives['TestML']
         if directive == 'Include'
-          runtime = $TestML::Runtime::singleton \
+          runtime = $TestMLRuntimeSingleton \
             or fail "Can't process Include. No runtime available"
           include_ = self.class.new
           include_.preprocess(runtime.read_testml_file(value))

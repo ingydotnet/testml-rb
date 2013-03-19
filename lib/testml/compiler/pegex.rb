@@ -5,10 +5,10 @@ class TestML::Compiler::Pegex < TestML::Compiler
   attr_accessor :parser
 
   def compile_code
-    @parser = ::Pegex::Parser.new(
-      TestML::Compiler::Pegex::Grammar,
-      TestML::Compiler::Pegex::AST,
-    )
+    @parser = ::Pegex::Parser.new do |p|
+      p.grammar = TestML::Compiler::Pegex::Grammar.new
+      p.receiver = TestML::Compiler::Pegex::AST.new
+    end
     fixup_grammar
     parser.parse(@code, 'code_section') \
       or fail "Parse TestML code section failed"
@@ -30,14 +30,18 @@ class TestML::Compiler::Pegex < TestML::Compiler
     if block_marker
       block_marker.gsub! /([\$\%\^\*\+\?\|])/, '\\\1'
       tree['block_marker']['.rgx'] = %r!\A#{block_marker}!
-      point_lines.sub!(/===/, block_marker)
+      tree['point_lines']['.rgx'] = Regexp.new(
+        point_lines.to_s.sub!(/===/, block_marker)
+      )
     end
 
     point_marker = @directives['PointMarker']
     if point_marker
       point_marker.gsub! /([\$\%\^\*\+\?\|])/, '\\\1'
       tree['point_marker']['.rgx'] = %r!\A#{point_marker}!
-      point_lines.sub!(/\\-\\-\\-/, point_marker)
+      tree['point_lines']['.rgx'] = Regexp.new(
+        point_lines.to_s.sub!(/\\-\\-\\-/, point_marker)
+      )
     end
   end
 end

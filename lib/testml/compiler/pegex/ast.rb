@@ -21,6 +21,7 @@ class TestML::Compiler::Pegex::AST < Pegex::Tree
   end
 
   def got_code_statement(list)
+    expression, assertion = nil, nil
     points = @points
     @points = []
     list.each do |e|
@@ -40,9 +41,9 @@ class TestML::Compiler::Pegex::AST < Pegex::Tree
   def got_code_expression(list)
     calls = []
     calls.push(list.shift) if !list.empty?
-    list !list.empty? ? list.shift : []
+    list = !list.empty? ? list.shift : []
     list.each do |e|
-      call = e[0]
+      call = e[1]   # XXX this is e[0] in perl
       calls.push(call)
     end
     return calls[0] if calls.size == 1
@@ -64,12 +65,13 @@ class TestML::Compiler::Pegex::AST < Pegex::Tree
   end
 
   def got_assertion_call(call)
+    name, expr = nil, nil
     %w( eq has ok ).each do |a|
       if expr = call["assertion_#{a}"]
         name = a.upcase
         expr =
-          expr["assertion_operator_#{a}"] ||
-          expr["assertion_function_#{a}"]
+          expr["assertion_operator_#{a}"][0] ||
+          expr["assertion_function_#{a}"][0]
         break
       end
     end
@@ -80,17 +82,23 @@ class TestML::Compiler::Pegex::AST < Pegex::Tree
     return { 'assertion_function_ok' => [] }
   end
 
-  def got_function_start
+  def got_function_start(dummy)
     function = TestML::Function.new
-    function.outer(@function)
+    function.outer = @function
     @function = function
     return true
   end
 
   def got_function_object(object)
     function = @function
-    @function = @function.outer
-    fail "TODO"
+    @function = function.outer
+
+    if object[0].kind_of? Array and object[0][0].kind_of? Array
+      function.signature = object[0][0]
+    end
+    function.statements = object[-1]
+
+    return function
   end
 
   def got_call_name(name)
@@ -99,10 +107,14 @@ class TestML::Compiler::Pegex::AST < Pegex::Tree
 
   def got_call_object(object)
     call = object[0]
-    args = object[0][-1]
+    args = object[1] && object[1][-1]
     if args
       args = args.map do |arg|
-        fail "TODO"
+        (arg.kind_of?(TestML::Expression) and arg.calls.size == 1 and
+        (
+           arg.calls[0].kind_of?(TestML::Point) ||
+           arg.calls[0].kind_of?(TestML::Object)
+        )) ? arg.calls[0] : arg
       end
       call.args = args
     end
@@ -113,7 +125,7 @@ class TestML::Compiler::Pegex::AST < Pegex::Tree
     return list
   end
 
-  def got_call_indicator
+  def got_call_indicator(dummy)
     return
   end
 
@@ -122,7 +134,10 @@ class TestML::Compiler::Pegex::AST < Pegex::Tree
   end
 
   def got_data_block(block)
-    return TestML::Block.new(block[0][0][0], fail("TODO"))
+    label = block[0][0][0]
+    points = {}
+    block[1].each {|h| h.each { |k, v| points[k] = v } }
+    return TestML::Block.new(label, points)
   end
 
   def got_block_point(point)
