@@ -28,6 +28,10 @@ Title = "O HAI TEST";
     func = TestML::Compiler::Pegex.new.compile(testml)
     func_lite = TestML::Compiler::Lite.new.compile(testml)
 
+#     File.open('/tmp/got', 'w') {|f| f.write func.to_yaml}
+#     File.open('/tmp/want', 'w') {|f| f.write func_lite.to_yaml}
+#     STDERR.write(`diff -u /tmp/want /tmp/got`)
+
     assert_equal YAML.dump(func_lite), YAML.dump(func),
       'Lite compile matches normal compile'
   end

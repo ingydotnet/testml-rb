@@ -16,17 +16,13 @@ class TestMLBridge < TestML::Bridge
     str args.flatten.map(&:value).join(' ')
   end
 
-  def compile_testml(testml)
-    @runtime.compiler_class.new.compile(testml.value)
+  def f1(num)
+    num = num.value
+    return num num * 42 + num
   end
 
-  def json_load json
-    require 'json'
-    JSON.load json
-  end
-
-  def yaml_dump object
-    require 'yaml'
-    str YAML.dump(object).sub(/\A---\n/, '')
+  def f2(num)
+    num = num.value
+    return num num * num + num
   end
 end

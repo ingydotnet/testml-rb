@@ -98,7 +98,7 @@ class TestML::Compiler::Lite < TestML::Compiler
     while !done and peek !~ /^(#{ENDING}|#{COMP})$/ do
       token = pop
       if token =~ /^#{NUM}$/
-        calls.push TestML::Num.new(token)
+        calls.push TestML::Num.new(token.to_i)
       elsif token =~ /^#{QSTR}$/
         str = token[1..-2]
         calls.push TestML::Str.new(str)

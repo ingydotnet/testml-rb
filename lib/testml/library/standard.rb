@@ -43,8 +43,8 @@ class TestML::Library::Standard < TestML::Library
 #     return bool(object.bool.value)
 #   end
 
-  def List(object)
-    return list(object.list.value)
+  def List(*args)
+    return list(args)
   end
 
   def Join(list, separator=nil)
@@ -57,7 +57,8 @@ class TestML::Library::Standard < TestML::Library
   end
 
   def Text(lines)
-    return str(lines.list.value.map {|l| l.value}.join($/))
+    value = lines.list.value
+    return str(((value.map {|l| l.value}) + ['']).join($/))
   end
 
   def Count(list)
@@ -73,7 +74,7 @@ class TestML::Library::Standard < TestML::Library
   end
 
   def Sort(list)
-    return list(list.list.value.sort)
+    return list(list.list.value.sort {|a, b| a.value <=> b.value})
   end
 
   def Strip(string, part)

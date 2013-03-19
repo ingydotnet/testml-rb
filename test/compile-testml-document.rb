@@ -26,7 +26,7 @@ Title = "O HAI TEST"
     func = TestML::Compiler::Pegex.new.compile(testml)
     assert func, 'TestML string matches against TestML grammar'
     assert_equal func.namespace['TestML'].value, '0.1.0', 'Version parses'
-    assert_equal func.statements[0].expr.value, '2', 'Plan parses'
+    assert_equal func.statements[0].expr.value, 2, 'Plan parses'
     assert_equal func.statements[1].expr.value, 'O HAI TEST', 'Title parses'
     assert_equal func.statements[1].expr.value, 'O HAI TEST', 'Title parses'
 

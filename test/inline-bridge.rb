@@ -1,9 +1,11 @@
 require 'testml'
 require 'testml/bridge'
+require 'testml/util'
+include TestML::Util
 
 class Bridge < TestML::Bridge
   def upper(string)
-    string.value.upcase
+    str string.value.upcase
   end
 end
 

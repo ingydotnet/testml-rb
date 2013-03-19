@@ -177,6 +177,7 @@ class TestML::Runtime
       value = native.value.call(*args)
     rescue
       @error = $!.message
+#       @error = "#{$!.class}: #{$!.message}\n at #{$!.backtrace[0]}"
       return TestML::None.new
     end
     if value.kind_of? TestML::Object
@@ -400,21 +401,21 @@ class TestML::Object
 
   def type
     type = self.class.to_s
-    type.sub! /^Type::/, '' or fail "Can't find type of '#{type}'"
+    type.sub! /^TestML::/, '' or fail "Can't find type of '#{type}'"
     return type
   end
 
   def str
-    fail "Cast from #{@value.class} to Str is not supported"
+    fail "Cast from #{type} to Str is not supported"
   end
   def num
-    fail "Cast from #{@value.class} to Num is not supported"
+    fail "Cast from #{type} to Num is not supported"
   end
   def bool
-    fail "Cast from #{@value.class} to Bool is not supported"
+    fail "Cast from #{type} to Bool is not supported"
   end
   def list
-    fail "Cast from #{@value.class} to List is not supported"
+    fail "Cast from #{type} to List is not supported"
   end
   def none
     TestML::Constant::None
@@ -475,6 +476,9 @@ class TestML::List < TestML::Object
   def push elem
     @value.push elem
   end
+  def list
+    return self
+  end
 end
 
 #-----------------------------------------------------------------------------
@@ -510,7 +514,7 @@ end
 
 #-----------------------------------------------------------------------------
 module TestML::Constant
-  True = TestML::Bool.new(value: 1)
-  False = TestML::Bool.new(value: 0)
+  True = TestML::Bool.new(true)
+  False = TestML::Bool.new(false)
   None = TestML::None.new
 end

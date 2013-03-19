@@ -55,7 +55,7 @@ class TestML::Compiler::Pegex::AST < Pegex::Tree
   end
 
   def got_number_object(number)
-    return TestML::Num.new(number)
+    return TestML::Num.new(number.to_i)
   end
 
   def got_point_object(point)
@@ -70,8 +70,8 @@ class TestML::Compiler::Pegex::AST < Pegex::Tree
       if expr = call["assertion_#{a}"]
         name = a.upcase
         expr =
-          expr["assertion_operator_#{a}"][0] ||
-          expr["assertion_function_#{a}"][0]
+          expr.fetch("assertion_operator_#{a}", [])[0] ||
+          expr.fetch("assertion_function_#{a}", [])[0]
         break
       end
     end
@@ -135,8 +135,7 @@ class TestML::Compiler::Pegex::AST < Pegex::Tree
 
   def got_data_block(block)
     label = block[0][0][0]
-    points = {}
-    block[1].each {|h| h.each { |k, v| points[k] = v } }
+    points = block[1].inject({}){|r, h| r.merge!(h)}
     return TestML::Block.new(label, points)
   end
 
