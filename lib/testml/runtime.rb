@@ -196,10 +196,10 @@ class TestML::Runtime
       next unless wanted.all?{|point| points.key?(point)}
       if points.key?('ONLY')
         selected = [block]
-        last
+        break
       end
       selected << block
-      last if points.key?('LAST')
+      break if points.key?('LAST')
     end
     return selected
   end

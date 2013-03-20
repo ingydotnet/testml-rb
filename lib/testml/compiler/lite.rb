@@ -162,7 +162,7 @@ class TestML::Compiler::Lite < TestML::Compiler
         block.points[key] = value
 
         if key =~ /^(ONLY|SKIP|LAST)$/
-          block[key] = true
+          block.points[key] = true
         end
       end
       data.push block
