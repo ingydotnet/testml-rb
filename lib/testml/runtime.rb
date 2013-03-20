@@ -20,11 +20,7 @@ class TestML::Runtime
   def run
     compile_testml
     initialize_runtime
-
-    run_function(
-      @function,
-      [],
-    )
+    run_function(@function, [])
   end
 
   def run_function(function, args)
@@ -42,7 +38,7 @@ class TestML::Runtime
     end
 
     @function = parent
-    return TestML::None.new
+    return
   end
 
   def apply_signature(function, args)
@@ -128,9 +124,9 @@ class TestML::Runtime
     if call.kind_of? TestML::Call
       name = call.name
       callable =
-          @function.getvar(name) ||
-          get_point(name) ||
-          lookup_callable(name) ||
+        @function.getvar(name) ||
+        get_point(name) ||
+        lookup_callable(name) ||
           fail("Can't locate '#{name}' callable")
       if callable.kind_of? TestML::Object
         return callable
@@ -139,8 +135,17 @@ class TestML::Runtime
       call.args ||= []
       args = call.args.map{|arg| run_expression(arg)}
       args.unshift context if !context.nil?
-      if callable.kind_of? TestML::Native
-        return run_native(callable, args)
+      if callable.kind_of? TestML::Callable
+        begin
+          value = callable.value.call(*args)
+        rescue
+          @error = $!.message
+#           @error = "#{$!.class}: #{$!.message}\n at #{$!.backtrace[0]}"
+          return TestML::Error.new(@error)
+        end
+        fail "'#{name}' did not return a TestML::Object object" \
+          unless value.kind_of? TestML::Object
+        return value
       end
       if callable.kind_of? TestML::Function
         return run_function(callable, args)
@@ -156,7 +161,7 @@ class TestML::Runtime
         function = lambda do |*args|
           library.method(name).call(*args)
         end
-        callable = TestML::Native.new(function)
+        callable = TestML::Callable.new(function)
         @function.setvar(name, callable)
         return callable
       end
@@ -170,21 +175,6 @@ class TestML::Runtime
       value = ''
     end
     return TestML::Str.new(value)
-  end
-
-  def run_native native, args
-    begin
-      value = native.value.call(*args)
-    rescue
-      @error = $!.message
-#       @error = "#{$!.class}: #{$!.message}\n at #{$!.backtrace[0]}"
-      return TestML::None.new
-    end
-    if value.kind_of? TestML::Object
-      return value
-    else
-      return object_from_native(value)
-    end
   end
 
   def select_blocks(wanted)
@@ -202,17 +192,6 @@ class TestML::Runtime
       break if points.key?('LAST')
     end
     return selected
-  end
-
-  def object_from_native(value)
-    return
-        value.is_nil? ? TestML::None.new :
-        value.kind_of?(Array) ? TestML::List.new(value) :
-        value.match(/^-?\d+$/) ? TestML::Num.new(value.to_i) :
-        value == TestML::Constant::True ? value :
-        value == TestML::Constant::False ? value :
-        value == TestML::Constant::None ? value :
-        TestML::Str.new(value)
   end
 
   def compile_testml
@@ -249,18 +228,20 @@ class TestML::Runtime
   end
 
   def get_label
-    label = @function.getvar('Label').value
-    label.gsub /\$(\w+)/ do |m|
-      var = $1
-      block = @function.getvar('Block')
-      if var == 'BlockLabel'
-        block.label
-      elsif v = block.points[var]
-        v.sub!(/\n.*/m, '')
-        v.strip
-      elsif v = function.getvar(var)
-        v.value
-      end
+    label = @function.getvar('Label') or return
+    label = label.value
+    label.gsub(/\$(\w+)/) {|m| replace_label($1)}
+  end
+
+  def replace_label(var)
+    block = @function.getvar('Block')
+    if var == 'BlockLabel'
+      block.label
+    elsif v = block.points[var]
+      v.sub!(/\n.*/m, '')
+      v.strip
+    elsif v = function.getvar(var)
+      v.value
     end
   end
 
@@ -359,6 +340,15 @@ class TestML::Call
   def initialize(name, args=[])
     @name = name
     @args = args if !args.empty?
+  end
+end
+
+#-----------------------------------------------------------------------------
+class TestML::Callable
+  attr_accessor :value
+
+  def initialize(value)
+    @value = value
   end
 end
 
@@ -495,15 +485,11 @@ class TestML::None < TestML::Object
 end
 
 #-----------------------------------------------------------------------------
-class TestML::Error < TestML::Object
+class TestML::Native < TestML::Object
 end
 
 #-----------------------------------------------------------------------------
-class TestML::Native 
-  attr_accessor :value
-  def initialize value
-    @value = value
-  end
+class TestML::Error < TestML::Object
 end
 
 #-----------------------------------------------------------------------------

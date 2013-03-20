@@ -1,6 +1,9 @@
 require 'testml/runtime'
 
 module TestML::Util
+  def list(value)
+    TestML::List.new(value)
+  end
   def str(value)
     TestML::Str.new(value)
   end
@@ -13,7 +16,7 @@ module TestML::Util
   def none(value)
     TestML::None.new(value)
   end
-  def list(value)
-    TestML::List.new(value)
+  def native(value)
+    TestML::Native.new(value)
   end
 end

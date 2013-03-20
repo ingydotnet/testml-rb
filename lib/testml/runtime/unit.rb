@@ -27,7 +27,7 @@ class TestML::Runtime::Unit < TestML::Runtime
   def self.register test
     filename = caller.map {|s| s.split(':').first} \
       .grep(/(^|\/)#{TestFilePattern}$/).first \
-      or fail caller.join("\n")
+        or fail caller.join("\n")
     name = filename.clone
     test.base = filename.sub!(/(.*)\/.*/, '\1') ? filename : '.'
     name.gsub!(/^(?:.*\/)?#{TestFilePattern}$/, '\1') \
@@ -42,7 +42,7 @@ class TestML::Runtime::Unit < TestML::Runtime
     TestML::TestCase.send(:define_method, testname) do
       test = TestML::Runtime::Unit.Tests[testname] \
         or fail "No test object for '#{testname}'"
-      # $TestMLRuntimeSingleton.testcase = self
+      # XXX This should probably not be a global variable.
       $testcase = self
       $testcase.name = testname
       test.run
