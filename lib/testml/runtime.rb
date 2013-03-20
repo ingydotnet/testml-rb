@@ -49,13 +49,13 @@ class TestML::Runtime
     signature = function.signature || []
 
     fail "Function received #{args.size} args but expected #{signature.size}" \
-      if ! signature.empty? and @args.size != signature.size
+      if ! signature.empty? and args.size != signature.size
 
     @function.setvar('Self', function)
     signature.each_with_index do |sig_elem, i|
       arg = args[i]
       arg = run_expression(arg) \
-        if arg.kind_of TestML::Expression
+        if arg.kind_of? TestML::Expression
       function.setvar(sig_elem, arg)
     end
   end
@@ -278,19 +278,12 @@ class TestML::Function
   attr_accessor :data
 
   @@outer = {}
-  def outer
-    @@outer[self.object_id]
-  end
-  def outer=(value)
-    @@outer[self.object_id] = value
-  end
-
-  def type
-    'Func'
-  end
+  def outer; @@outer[self.object_id] end
+  def outer=(value); @@outer[self.object_id] = value end
+  def type; 'Func' end
+  def namespace; @namespace ||= {} end
 
   def initialize
-    @namespace = {}
     @statements = []
   end
 
@@ -306,11 +299,11 @@ class TestML::Function
   end
 
   def setvar name, value
-    @namespace[name] = value
+    namespace[name] = value
   end
 
   def forgetvar name
-    @namespace.delete name
+    namespace.delete name
   end
 end
 
@@ -354,7 +347,7 @@ class TestML::Assertion
 
   def initialize(name, expr=nil)
     @name = name
-    @expr = expr
+    @expr = expr if expr
   end
 end
 
@@ -422,6 +415,9 @@ end
 
 #-----------------------------------------------------------------------------
 class TestML::Str < TestML::Object
+  def initialize(str)
+    @value = str.to_s
+  end
   def str
     self
   end

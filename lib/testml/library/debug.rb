@@ -2,9 +2,16 @@ require 'testml/library'
 
 class TestML::Library::Debug < TestML::Library
   def XXX(*args)
-    require 'xxx'
-    fail 'TODO How do I call xxx::XXX?'
+    require 'yaml'
+    args.each {|node| puts YAML.dump(node)}
+    puts 'XXX from: ' + caller.first
+    exit
   end
 
-  # TODO WWW YYY ZZZ
+  def YYY(*args)
+    require 'yaml'
+    args.each {|node| puts YAML.dump(node)}
+    puts 'YYY from: ' + caller.first
+    return *args
+  end
 end

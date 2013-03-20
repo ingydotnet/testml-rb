@@ -81,9 +81,6 @@ class TestML::Library::Standard < TestML::Library
   def Strip(string, part)
     string = string.str.value
     part = part.str.value
-    if i = string.index(part)
-      string = string[0..i] + string[(i + part.length)..-1]
-    end
-    return str(string)
+    return str string.sub(part, '')
   end
 end

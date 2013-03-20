@@ -73,7 +73,7 @@ class TestML::Runtime::Unit < TestML::Runtime
     if title = @function.getvar('Title') || $testcase.name
       title = title.value if title.kind_of? TestML::Str
       title = "\n=== #{title} ===\n"
-      STDERR.write title
+      # STDERR.write title
     end
   end
 

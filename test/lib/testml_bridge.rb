@@ -17,12 +17,12 @@ class TestMLBridge < TestML::Bridge
   end
 
   def f1(num)
-    num = num.value
-    return num num * 42 + num
+    num = num.value.to_i
+    return str num * 42 + num
   end
 
   def f2(num)
-    num = num.value
-    return num num * num + num
+    num = num.value.to_i
+    return str num * num + num
   end
 end
