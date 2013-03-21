@@ -73,6 +73,7 @@ class TestML::Runtime::Unit < TestML::Runtime
     if title = @function.getvar('Title') || $testcase.name
       title = title.value if title.kind_of? TestML::Str
       title = "\n=== #{title} ===\n"
+      # TODO Figure out when to print titles.
       # STDERR.write title
     end
   end
@@ -93,17 +94,15 @@ class TestML::Runtime::Unit < TestML::Runtime
   def assert_EQ(got, want)
     got = got.value
     want = want.value
-    $testcase.assert_equal want, got, get_label
     # TODO Move this logic to testml/diff
     if got != want
-      if respond_to? 'on_fail'
-        on_fail
-      elsif want.value.match /\n/
+      if want.match /\n/
         File.open('/tmp/got', 'w') {|f| f.write got}
         File.open('/tmp/want', 'w') {|f| f.write want}
         STDERR.write(`diff -u /tmp/want /tmp/got`)
       end
     end
+    $testcase.assert_equal want, got, get_label
   end
 
   def assert_HAS(got, has)
