@@ -1,4 +1,4 @@
-$:.unshift "#{Dir.getwd}/test/lib"
+$:.unshift "#{Dir.getwd}/test"
 
 require 'testml'
 require 'testml_bridge'

@@ -2,7 +2,7 @@ require 'test/unit'
 require 'testml'
 require 'testml/compiler/pegex'
 require 'testml/compiler/lite'
-$:.unshift "#{Dir.getwd}/test/lib"
+$:.unshift "#{Dir.getwd}/test"
 require 'testml_bridge'
 
 class TestMLTestCase < Test::Unit::TestCase
