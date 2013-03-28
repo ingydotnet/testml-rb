@@ -5,15 +5,16 @@ class TestML::Runtime
   attr_accessor :bridge
   attr_accessor :library
   attr_accessor :compiler
-  attr_accessor :base
   attr_accessor :skip
 
   attr_accessor :function
   attr_accessor :error
   attr_accessor :global
+  attr_accessor :base
 
   def initialize(attributes={})
     attributes.each { |k,v| self.send "#{k}=", v }
+    @base ||= 'test'
     $TestMLRuntimeSingleton = self
   end
 

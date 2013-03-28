@@ -6,29 +6,27 @@ class TestML
   attr_accessor :bridge
   attr_accessor :library
   attr_accessor :testml
-  attr_accessor :base
 
   def initialize attributes={}
     attributes.each { |k,v| self.send "#{k}=", v }
-    if not @runtime
-      require 'testml/runtime/unit'
-      @runtime = TestML::Runtime::Unit
-    end
-    @runtime.register self
+    yield self if block_given?
   end
 
-  def run
+  def run(*args)
     set_default_classes
     @runtime.new(
       compiler: @compiler,
       bridge: @bridge,
       library: @library,
       testml: @testml,
-      base: @base,
-    ).run
+    ).run(*args)
   end
 
   def set_default_classes
+    if not @runtime
+      require 'testml/runtime/unit'
+      @runtime = TestML::Runtime::Unit
+    end
     if not @compiler
       require 'testml/compiler/pegex'
       @compiler = TestML::Compiler::Pegex
