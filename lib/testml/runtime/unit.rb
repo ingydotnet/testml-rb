@@ -36,8 +36,8 @@ class TestML::Runtime::Unit < TestML::Runtime
 
   # XXX Need to disable by default and provide a simple way to turn on.
   def title
-    if title = @function.getvar('Title') || nil
-      title = title.value if title.kind_of? TestML::Str
+    if title = @function.getvar('Title')
+      title = title.value
       title = "\n=== #{title} ===\n"
       # TODO Figure out when to print titles.
       # STDERR.write title

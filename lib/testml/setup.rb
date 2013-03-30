@@ -42,6 +42,8 @@ class TestML::Setup
       end
       if template
         test = file.sub /\.tml$/, '.rb'
+        test = conf['test_file_prefix'] + test \
+          if conf['test_file_prefix']
         test = File.expand_path test, tests
         hash = {
           file: rel(t, base),

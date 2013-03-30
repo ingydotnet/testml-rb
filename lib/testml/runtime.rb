@@ -14,8 +14,8 @@ class TestML::Runtime
 
   def initialize(attributes={})
     attributes.each { |k,v| self.send "#{k}=", v }
-    @base ||= 'test'
     $TestMLRuntimeSingleton = self
+    @base ||= 'test'
   end
 
   def run

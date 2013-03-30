@@ -15,7 +15,7 @@ class TestMLTestCase < Test::Unit::TestCase
   end
 
   (Dir.glob('test/testml/*.tml')
-    .select { |f| f !~ /external\d/ }
+    .select { |f| f !~ /external[12]/ }
     .collect {|f| f.sub(/^test\//, '')}
   ).each do |file|
     method_name = 'test_' + file.gsub(/\W/, '_').sub(/_tml$/, '')
