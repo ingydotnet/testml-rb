@@ -1,5 +1,6 @@
 require 'testml/library'
 
+# TODO Either require or duplicate wxyz.rb here
 class TestML::Library::Debug < TestML::Library
   def XXX(*args)
     require 'yaml'

@@ -49,49 +49,47 @@ class TestML::Compiler
           fail "Invalid TestML directive" \
             unless value =~ /^\d+\.\d+\.\d+$/
           fail "More than one TestML directive found" \
-            if directives['TestML']
-          directives['TestML'] = TestML::Str.new(value)
+            if @directives['TestML']
+          @directives['TestML'] = TestML::Str.new(value)
           next
         end
-        order_error = true unless directives['TestML']
+        order_error = true unless @directives['TestML']
         if directive == 'Include'
           runtime = $TestMLRuntimeSingleton \
             or fail "Can't process Include. No runtime available"
           include_ = self.class.new
           include_.preprocess(runtime.read_testml_file(value))
           input << include_.text
-          directives['DataMarker'] =
+          @directives['DataMarker'] =
             include_.directives['DataMarker']
-          directives['BlockMarker'] =
+          @directives['BlockMarker'] =
             include_.directives['BlockMarker']
-          directives['PointMarker'] =
+          @directives['PointMarker'] =
             include_.directives['PointMarker']
           fail "Can't define %TestML in an Included file" \
             if include_.directives['TestML']
         elsif directive =~ /^(DataMarker|BlockMarker|PointMarker)$/
-          directives[directive] = value
+          @directives[directive] = value
         elsif directive =~ /^(DebugPegex|DumpAST)$/
           value = true if value.empty?
-          directives[directive] = value
+          @directives[directive] = value
         else
           fail "Unknown TestML directive '$#{directive}'"
         end
       else
-        order_error = true if !input.empty? and !directives['TestML']
+        order_error = true if !input.empty? and !@directives['TestML']
         input << part
       end
     end
 
     if top
       fail "No TestML directive found" \
-        unless directives['TestML']
+        unless @directives['TestML']
       fail "%TestML directive must be the first (non-comment) statement" \
         if order_error
 
-        _DataMarker =
-           directives['DataMarker'] ||=
-           directives['BlockMarker']
-      if split = input.index("\n#{_DataMarker}")
+      @directives['DataMarker'] ||= @directives['BlockMarker']
+      if split = input.index("\n#{@directives['DataMarker']}")
         @code = input[0..(split)]
         @data = input[(split + 1)..-1]
       else
