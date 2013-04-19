@@ -2,7 +2,7 @@
 
 GemSpec = Gem::Specification.new do |gem|
   gem.name = 'testml'
-  gem.version = '0.0.1'
+  gem.version = '0.0.2'
   gem.license = 'MIT'
   gem.required_ruby_version = '>= 1.9.1'
 
@@ -15,4 +15,6 @@ TestML is an Acmeist testing framework.
   gem.homepage = 'http://testml.org'
 
   gem.files = `git ls-files`.lines.map{|l|l.chomp}
+
+  gem.add_dependency 'pegex', '>= 0.0.3'
 end
