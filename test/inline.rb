@@ -1,11 +1,17 @@
-$:.unshift "#{Dir.getwd}/test"
-
+require 'test/unit'
 require 'testml'
-require 'testml_bridge'
+require_relative 'testml_bridge'
 
-TestML.new(
-    bridge: TestMLBridge,
-).testml = <<'...'
+class Test::Inline < Test::Unit::TestCase
+  def test
+    TestML.new(
+      testml: testml,
+      bridge: TestMLBridge,
+    ).run(self)
+  end
+
+  def testml
+    <<'...'
 %TestML 0.1.0
 
 Title = "Ingy's Test";
@@ -26,3 +32,5 @@ HAI
 O
 HAI
 ...
+  end
+end

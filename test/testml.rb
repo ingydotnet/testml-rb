@@ -2,10 +2,9 @@ require 'test/unit'
 require 'testml'
 require 'testml/compiler/pegex'
 require 'testml/compiler/lite'
-$:.unshift "#{Dir.getwd}/test"
-require 'testml_bridge'
+require_relative 'testml_bridge'
 
-class TestMLTestCase < Test::Unit::TestCase
+class Test::TestML < Test::Unit::TestCase
   def run_testml_file(file, compiler=TestML::Compiler::Pegex)
     TestML.new(
       testml: file,

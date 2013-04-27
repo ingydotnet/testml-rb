@@ -5,8 +5,8 @@ require 'testml/compiler/lite'
 require 'testml/compiler/pegex'
 require 'yaml'
 
-class TestCompile < Test::Unit::TestCase
-  def test_compile
+class Test::Compile < Test::Unit::TestCase
+  def test
     compile('testml/arguments.tml', TestML::Compiler::Pegex)
     compile('testml/basic.tml', TestML::Compiler::Pegex)
     compile('testml/dataless.tml', TestML::Compiler::Pegex)

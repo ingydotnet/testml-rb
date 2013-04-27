@@ -5,8 +5,8 @@ require 'testml/compiler/pegex'
 require 'testml/compiler/lite'
 require 'yaml'
 
-class TestCompileLite < Test::Unit::TestCase
-  def test_compile_lite
+class Test::CompileLite < Test::Unit::TestCase
+  def test
     testml = <<'...'
 # A comment
 %TestML 0.1.0

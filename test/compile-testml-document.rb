@@ -3,8 +3,8 @@ require 'test/unit'
 require 'testml/runtime'
 require 'testml/compiler/pegex'
 
-class TestCompileTestMLDocument < Test::Unit::TestCase
-  def test_compile_testml_document
+class Test::CompileTestMLDocument < Test::Unit::TestCase
+  def test
     testml = <<'...'
 # A comment
 %TestML 0.1.0

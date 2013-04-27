@@ -1,6 +1,16 @@
+require 'test/unit'
 require 'testml'
 
-TestML.new.testml = <<'...'
+class Test::Strings < Test::Unit::TestCase
+  def test
+    TestML.new(
+      testml: testml,
+      bridge: TestMLBridge,
+    ).run(self)
+  end
+
+  def testml
+    <<'...'
 %TestML 0.1.0
 
 Plan = 6
@@ -20,5 +30,6 @@ Label = 'Simple string comparison'
 
 === Empty Point
 --- empty
-
 ...
+  end
+end
