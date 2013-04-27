@@ -112,7 +112,9 @@ class TestML::Compiler::Pegex::Grammar < Pegex::Grammar
         {"+min"=>0, ".ref"=>"block_point"}]},
     "data_section"=>{"+min"=>0, ".ref"=>"data_block"},
     "double_quoted_string"=>{".rgx"=>/\A(?:"((?:[^\n\\"]|\\"|\\\\|\\[0nt])*?)")/},
-    "ending"=>{".rgx"=>/\A(?:;|\r?\n)/},
+    "ending"=>
+      {".any"=>[{".rgx"=>/\A(?:;|\r?\n)/}, {"+asr"=>1, ".ref"=>"ending2"}]},
+    "ending2"=>{".rgx"=>/\A(?:[\ \t]|\r?\n|\#.*\r?\n)*\}/},
     "function_object"=>
       {".all"=>
         [{"+max"=>1, ".ref"=>"function_signature"},
