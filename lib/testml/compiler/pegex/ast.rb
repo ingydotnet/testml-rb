@@ -54,6 +54,10 @@ class TestML::Compiler::Pegex::AST < Pegex::Tree
     return TestML::Str.new(string)
   end
 
+  def got_double_quoted_string(string)
+    string.gsub '\\n', "\n"
+  end
+
   def got_number_object(number)
     return TestML::Num.new(number.to_i)
   end

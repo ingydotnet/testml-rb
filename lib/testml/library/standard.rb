@@ -83,4 +83,9 @@ class TestML::Library::Standard < TestML::Library
     part = part.str.value
     return str string.sub(part, '')
   end
+
+  def Print(string)
+    print string.value
+    return bool(true)
+  end
 end

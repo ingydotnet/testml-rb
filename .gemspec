@@ -17,4 +17,6 @@ TestML is an Acmeist testing framework.
   gem.files = `git ls-files`.lines.map{|l|l.chomp}
 
   gem.add_dependency 'pegex', '>= 0.0.3'
+  gem.add_development_dependency 'minitest', '>= 4.7.3'
+  gem.add_development_dependency 'wxyz'
 end
