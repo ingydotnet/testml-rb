@@ -47,6 +47,7 @@ class TestML::Setup
         test = File.expand_path test, tests
         hash = {
           file: rel(t, base),
+          name: file.gsub(/[^\w]+/, '_'),
         }
         code = template % hash
         if ! File.exists?(test) or code != File.read(test)
