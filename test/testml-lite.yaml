@@ -3,11 +3,11 @@ local_testml_dir: ./testml
 test_file_template: |
   require 'test/unit'
   require 'testml'
-  require 'testml/compiler/pegex'
+  require 'testml/compiler/lite'
   require_relative 'testml_bridge'
   
   class Test::TestML < Test::Unit::TestCase
-    def test_%{name}(compiler=TestML::Compiler::Pegex)
+    def test_%{name}(compiler=TestML::Compiler::Lite)
       TestML.new(
         testml: '%{file}',
         bridge: TestMLBridge,
@@ -15,12 +15,9 @@ test_file_template: |
       ).run(self)
     end
   end
-test_file_prefix: testml-
-exclude_testml_files:
-- comments.tml
-- data.tml
-- external1.tml
-- external2.tml
-- syntax.tml
-- syntax2.tml
-- topic.tml
+test_file_prefix: testml-lite-
+include_testml_files:
+- arguments.tml
+- basic.tml
+- exceptions.tml
+- semicolons.tml
