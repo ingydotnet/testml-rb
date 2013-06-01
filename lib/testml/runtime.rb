@@ -126,7 +126,6 @@ class TestML::Runtime
       name = call.name
       callable =
         @function.getvar(name) ||
-        get_point(name) ||
         lookup_callable(name) ||
           fail("Can't locate '#{name}' callable")
       if callable.kind_of? TestML::Object
